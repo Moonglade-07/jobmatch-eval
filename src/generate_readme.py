@@ -242,6 +242,8 @@ def build_phase_2b_markdown(
 ### 4. Query Latency Profile on CPU (25 timed runs per step)
 *(Measured on AMD 12-core CPU, PyTorch CPU execution with `torch_threads=6`, `CUDA: False`)*
 
+> **Measurement Conditions**: Latency was measured warm (retriever warm-up executed before timing), single-process, CPU-only, with inverted index, tokenized corpus, and regex caches pre-built outside the timed loop.
+
 {latency_table}
 
 ### 5. Ablation Study: Filter, Boost, and Weight Tuning
@@ -359,6 +361,9 @@ def build_readme_markdown(
 - **Full Re-Index Document Count:** {verif.get("full_reindex_document_count", "N/A")}
 - **ID Set Match:** {verif.get("id_sets_identical", False)}
 - **Content Hash Discrepancies:** {verif.get("hash_mismatches_count", 0)}
+
+> [!NOTE]
+> **Scope of Incremental Synchronization**: This benchmark measures incremental synchronization of the **ChromaDB dense vector index** specifically, where unchanged documents bypass embedding inference via SHA-256 content hashes. Because `rank_bm25` does not support incremental updates, the BM25 lexical index and tokenized corpus must be rebuilt in full (~6.0 s) whenever postings are added, modified, or removed. The production pipeline is therefore hybrid: dense vector updates are incremental, while lexical index updates require a complete rebuild.
 """
 
     rrf_formula = "$$RRF(d) = \\sum_{s \\in \\{bm25, dense\\}} \\frac{1}{60 + \\text{rank}_s(d)}$$"
@@ -480,9 +485,18 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are rule-based proposed labels (`label_source: model_proposed`), generated via deterministic heuristics (`jobmatch-rubric-v1`) and unverified by humans (`human_reviewed: false`). Evaluated retrieval metrics reflect alignment with deterministic rule-based criteria rather than human preference.
 2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. While the retrieval-independent audit shows that 51 out of 280 proposed relevant candidates (18.21% of label-1/2 rows) possess zero lexical overlap with candidate skills, 81.79% (and 100% of label-2 candidates) share explicit skill keywords. High BM25 scores reflect shared lexical signals with the rubric, not evidence that BM25 is the better retriever in absolute terms.
 3. **Retrieval-Independent Check is Indicative Only (51 pairs, 17 profiles)**: When evaluated on the 51 relevant candidates with zero literal skill matches, dense retrieval achieves higher recall (0.3931 vs 0.2588) and MRR (0.3437 vs 0.1751) than BM25, indicating semantic capability when keywords are missing. However, because only 17 profiles have any relevant documents in this slice, confidence intervals are wide and the result is indicative only.
-4. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
-5. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
-6. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+4. **Niche Role Coverage Gap (< 3 Relevant Docs)**: In this 3,000-posting LinkedIn sample, niche technical roles are poorly covered under strict location and seniority criteria. Exactly 6 of the 30 profiles have fewer than 3 relevant documents:
+   - `prof_01` (Machine Learning Engineer, Remote): 1 relevant doc
+   - `prof_07` (Mobile Developer, San Francisco, CA): 0 relevant docs
+   - `prof_09` (Database Administrator, Houston, TX): 2 relevant docs
+   - `prof_11` (QA Automation Engineer, Denver, CO): 2 relevant docs
+   - `prof_19` (NLP Engineer, Remote): 1 relevant doc
+   - `prof_23` (Computer Vision Engineer, Remote): 0 relevant docs
+   Broad roles (e.g. Junior Data Analyst with 32 relevant docs, Junior Software Developer with 21) have strong coverage, while specialized disciplines (mobile development, computer vision, NLP) have sparse representation in this dataset slice.
+5. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
+6. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
+7. **BM25 Full Rebuild vs Incremental Dense Indexing**: Latency benchmarks are measured warm in a single process on CPU with all caches pre-built. While ChromaDB supports hash-based incremental updates, `rank_bm25` has no incremental update mechanism; any mutation to the dataset requires rebuilding the BM25 index and tokenized corpus in full (~6.0 s).
+8. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
 
 ---
 
@@ -699,6 +713,9 @@ Four retrieval strategies are evaluated across 30 test candidate profiles spanni
 | Hash-Based Incremental Sync | **3.88 s** | 0.12 s | **773.2 docs/sec** |
 | **Measured Speedup** | **7.94x** | — | — |
 
+> [!NOTE]
+> **Scope of Incremental Synchronization**: This benchmark measures incremental synchronization of the **ChromaDB dense vector index** specifically, where unchanged documents bypass embedding inference via SHA-256 content hashes. Because `rank_bm25` does not support incremental updates, the BM25 lexical index and tokenized corpus must be rebuilt in full (~6.0 s) whenever postings are added, modified, or removed. The production pipeline is therefore hybrid: dense vector updates are incremental, while lexical index updates require a complete rebuild.
+
 ---
 
 ## 3. Candidate Pooling & Relevance Distribution (Phase 2A)
@@ -753,10 +770,19 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are rule-based proposed labels (`label_source: model_proposed`), with zero human evaluations conducted (`human_reviewed: false`). Evaluated retrieval metrics benchmark retriever alignment against rule-based heuristic criteria rather than human preference.
 2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. High BM25 scores reflect shared lexical signals with the rubric, not evidence that BM25 is the better retriever in absolute terms.
 3. **Retrieval-Independent Check is Indicative Only (51 pairs, 17 profiles)**: When evaluated on the 51 relevant candidates with zero literal skill matches, dense retrieval achieves higher recall and MRR than BM25, indicating semantic capability when keywords are missing. However, because only 17 profiles have any relevant documents in this slice, confidence intervals are wide and the result is indicative only.
-4. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
-5. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
-6. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
-7. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
+4. **Niche Role Coverage Gap (< 3 Relevant Docs)**: In this 3,000-posting LinkedIn sample, niche technical roles are poorly covered under strict location and seniority criteria. Exactly 6 of the 30 profiles have fewer than 3 relevant documents:
+   - `prof_01` (Machine Learning Engineer, Remote): 1 relevant doc
+   - `prof_07` (Mobile Developer, San Francisco, CA): 0 relevant docs
+   - `prof_09` (Database Administrator, Houston, TX): 2 relevant docs
+   - `prof_11` (QA Automation Engineer, Denver, CO): 2 relevant docs
+   - `prof_19` (NLP Engineer, Remote): 1 relevant doc
+   - `prof_23` (Computer Vision Engineer, Remote): 0 relevant docs
+   Broad roles (e.g. Junior Data Analyst with 32 relevant docs, Junior Software Developer with 21) have strong coverage, while specialized disciplines (mobile development, computer vision, NLP) have sparse representation in this dataset slice.
+5. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
+6. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
+7. **BM25 Full Rebuild vs Incremental Dense Indexing**: Latency benchmarks are measured warm in a single process on CPU with all caches pre-built. While ChromaDB supports hash-based incremental updates, `rank_bm25` has no incremental update mechanism; any mutation to the dataset requires rebuilding the BM25 index and tokenized corpus in full (~6.0 s).
+8. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+9. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
 """
 
     with open(RESULTS_PATH, "w", encoding="utf-8") as f:
