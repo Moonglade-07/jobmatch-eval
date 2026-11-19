@@ -127,12 +127,24 @@ def build_readme_markdown(
         metrics = agreement_stats.get("agreement_metrics", {})
         counts = agreement_stats.get("provenance_counts", {})
         cm_matrix = agreement_stats.get("confusion_matrix", {}).get("matrix", [[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+        l2_audit = agreement_stats.get("label2_rows_audit", {})
+        l2_section = ""
+        if l2_audit:
+            l2_dist = l2_audit.get("human_ratings_distribution", {})
+            l2_section = f"""
+#### Proposed Label-2 Candidates Audit ({l2_audit.get("total_label2_rows_evaluated", 0)} Rows)
+- **Confirmed Strongly Relevant (2)**: {l2_dist.get("rated_2_strongly_relevant", 0)} ({l2_audit.get("agreement_percentage", 0)}%)
+- **Downgraded to Partially Relevant (1)**: {l2_dist.get("rated_1_partially_relevant", 0)}
+- **Downgraded to Irrelevant (0)**: {l2_dist.get("rated_0_irrelevant", 0)}
+"""
+
         agreement_section = f"""### Inter-Annotator Agreement (`reports/label_agreement.json`)
-*(Measured across the {agreement_stats.get("reviewed_sample_size", 0)} reviewed pairs from `labels_reviewed.csv`)*
+*(Measured across the random {agreement_stats.get("random_must_review_sample_size", agreement_stats.get("reviewed_sample_size", 0))} `must_review` pairs from `labels_reviewed.csv`)*
 
 | Metric | Measured Value | Interpretation |
 |---|---|---|
-| Human-Reviewed Pairs | {counts.get("human_verified_count", 0)} / {agreement_stats.get("total_candidate_pairs", 0)} ({counts.get("human_verified_percentage", 0)}%) | Evaluated on `labels_reviewed.csv` |
+| Human-Reviewed Pairs (Total) | {counts.get("human_verified_count", 0)} / {agreement_stats.get("total_candidate_pairs", 0)} ({counts.get("human_verified_percentage", 0)}%) | Evaluated on `labels_reviewed.csv` |
+| Random Audit Sample Size | {agreement_stats.get("random_must_review_sample_size", 260)} pairs | Random sample for kappa |
 | Unreviewed (Model-Proposed) | {counts.get("model_proposed_count", 0)} / {agreement_stats.get("total_candidate_pairs", 0)} ({counts.get("model_proposed_percentage", 0)}%) | Retained model proposals |
 | Disagreement Count | {metrics.get("disagreement_count", 0)} pairs | Divergent judgments |
 | Disagreement Rate | **{metrics.get("disagreement_percentage", 0)}%** | Real measured disagreement |
@@ -147,7 +159,7 @@ def build_readme_markdown(
 | **Proposed 0** | {cm_matrix[0][0]} | {cm_matrix[0][1]} | {cm_matrix[0][2]} | {sum(cm_matrix[0])} |
 | **Proposed 1** | {cm_matrix[1][0]} | {cm_matrix[1][1]} | {cm_matrix[1][2]} | {sum(cm_matrix[1])} |
 | **Proposed 2** | {cm_matrix[2][0]} | {cm_matrix[2][1]} | {cm_matrix[2][2]} | {sum(cm_matrix[2])} |
-"""
+{l2_section}"""
     else:
         agreement_section = """### Human Review Status
 - **Blinded Review File**: [`labels_to_review.csv`](labels_to_review.csv) (277 pooled candidates: 260 random sample + all proposed label-2 candidates, union de-duplicated and shuffled per profile).
