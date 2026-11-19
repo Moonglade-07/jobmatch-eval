@@ -107,6 +107,8 @@ def reciprocal_rank_fusion(
             description=base_item.description,
             matched_skills=list(base_item.matched_skills),
             base_score=round(fused_score, 6),
+            raw_score=round(fused_score, 6),
+            filter_tier=base_item.filter_tier,
         )
         fused_results.append(fused_item)
 
@@ -206,16 +208,19 @@ class BM25Retriever(BaseRetriever):
         raw_results: List[SearchResult] = []
         for idx in top_indices:
             row = self.df.iloc[idx]
+            raw_s = float(round(doc_scores[idx], 4))
             raw_results.append(
                 SearchResult(
                     job_id=str(row["id"]),
-                    score=float(round(doc_scores[idx], 4)),
+                    score=raw_s,
                     title=str(row["title"]),
                     company=str(row["company"]),
                     location=str(row["location"]),
                     experience_level=str(row["experience_level"]),
                     description=str(row["description"]),
-                    base_score=float(round(doc_scores[idx], 4)),
+                    raw_score=raw_s,
+                    base_score=raw_s,
+                    filter_tier=1,
                 )
             )
 
@@ -227,10 +232,15 @@ class BM25Retriever(BaseRetriever):
                 seniority=profile.seniority,
                 k=k,
             )
+        else:
+            candidates = candidates[:k]
 
         if apply_boost:
             candidates = apply_skill_boost(
-                candidates, skills=profile.skills, weight=boost_weight
+                candidates,
+                skills=profile.skills,
+                weight=boost_weight,
+                normalize_base_scores=True,
             )
 
         return candidates[:k]
@@ -300,7 +310,7 @@ class DenseRetriever(BaseRetriever):
             ).tolist()
 
         # Query a generous candidate pool to allow downstream filtering
-        fetch_limit = min(max(k * 10, 100), self.collection.count())
+        fetch_limit = min(max(k * 20, 300), self.collection.count())
         query_output = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=fetch_limit,
@@ -333,7 +343,9 @@ class DenseRetriever(BaseRetriever):
                     location=str(meta.get("location", "")),
                     experience_level=str(meta.get("experience_level", "")),
                     description=desc,
+                    raw_score=similarity,
                     base_score=similarity,
+                    filter_tier=1,
                 )
             )
 
@@ -345,10 +357,15 @@ class DenseRetriever(BaseRetriever):
                 seniority=profile.seniority,
                 k=k,
             )
+        else:
+            candidates = candidates[:k]
 
         if apply_boost:
             candidates = apply_skill_boost(
-                candidates, skills=profile.skills, weight=boost_weight
+                candidates,
+                skills=profile.skills,
+                weight=boost_weight,
+                normalize_base_scores=True,
             )
 
         return candidates[:k]
@@ -423,10 +440,15 @@ class HybridRRFRetriever(BaseRetriever):
                 seniority=profile.seniority,
                 k=k,
             )
+        else:
+            candidates = candidates[:k]
 
         if apply_boost:
             candidates = apply_skill_boost(
-                candidates, skills=profile.skills, weight=boost_weight
+                candidates,
+                skills=profile.skills,
+                weight=boost_weight,
+                normalize_base_scores=True,
             )
 
         return candidates[:k]
@@ -512,14 +534,18 @@ class CrossEncoderRetriever(BaseRetriever):
             # Sigmoid normalization for interpretability
             norm_score = round(float(1.0 / (1.0 + np.exp(-float(score)))), 4)
             item.score = norm_score
+            item.raw_score = norm_score
             item.base_score = norm_score
 
-        candidates.sort(key=lambda x: x.score, reverse=True)
+        candidates.sort(key=lambda x: (x.filter_tier, -x.score))
 
-        # 4. Apply explainable skill boost if requested
+        # 4. Apply explainable skill boost with min-max normalization
         if apply_boost:
             candidates = apply_skill_boost(
-                candidates, skills=profile.skills, weight=boost_weight
+                candidates,
+                skills=profile.skills,
+                weight=boost_weight,
+                normalize_base_scores=True,
             )
 
         return candidates[:k]
