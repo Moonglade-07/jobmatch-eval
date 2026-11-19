@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from src.build_unverified_qrels import build_unverified_qrels
 from src.label_agreement import compute_weighted_cohen_kappa, evaluate_label_agreement
 
 
@@ -151,3 +152,46 @@ def test_evaluate_label_agreement_refuses_zero_annotations(tmp_path: Path) -> No
     empty_csv.write_text("profile_id,job_id,my_label\np1,j1,\n", encoding="utf-8")
     with pytest.raises(ValueError, match="Found 0 annotated rows in 'my_label' column"):
         evaluate_label_agreement(reviewed_csv_path=empty_csv)
+
+
+def test_build_unverified_qrels_produces_valid_payload(tmp_path: Path) -> None:
+    """Verify that build_unverified_qrels creates expected qrels.json and label_agreement.json."""
+    sample_df = pd.DataFrame([
+        {"profile_id": "p1", "job_id": 101, "proposed_label": 2},
+        {"profile_id": "p1", "job_id": 102, "proposed_label": 1},
+        {"profile_id": "p2", "job_id": 201, "proposed_label": 0},
+    ])
+    test_csv = tmp_path / "labels_proposed.csv"
+    test_qrels = tmp_path / "qrels.json"
+    test_report = tmp_path / "label_agreement.json"
+    sample_df.to_csv(test_csv, index=False)
+
+    res = build_unverified_qrels(
+        proposed_csv_path=test_csv,
+        qrels_path=test_qrels,
+        report_path=test_report,
+    )
+
+    assert res["total_judgments"] == 3
+    assert res["human_verified_count"] == 0
+    assert res["model_proposed_count"] == 3
+
+    with open(test_qrels, "r", encoding="utf-8") as f:
+        qrels_data = json.load(f)
+
+    assert qrels_data["metadata"]["human_verified_count"] == 0
+    assert qrels_data["metadata"]["model_proposed_count"] == 3
+    assert qrels_data["metadata"]["note"] == "qrels are model-proposed and unverified"
+    assert qrels_data["qrels"]["p1"]["101"] == {"relevance": 2, "label_source": "model_proposed"}
+    assert qrels_data["qrels"]["p1"]["102"] == {"relevance": 1, "label_source": "model_proposed"}
+    assert qrels_data["qrels"]["p2"]["201"] == {"relevance": 0, "label_source": "model_proposed"}
+
+    with open(test_report, "r", encoding="utf-8") as f:
+        report_data = json.load(f)
+
+    assert report_data == {
+        "human_reviewed": False,
+        "human_verified_count": 0,
+        "note": "qrels are model-proposed and unverified",
+    }
+
