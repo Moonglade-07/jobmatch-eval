@@ -1,0 +1,46 @@
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache and byte-compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Vector stores & storage directories
+chroma_db/
+chroma/
+*.sqlite3
+*.duckdb
+
+# Data & Large assets
+data/
+*.parquet
+*.arrow
+*.bin
+
+# Model weights & Hugging Face caches
+models/
+.cache/
+hf_cache/
+
+# System and editor files
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
