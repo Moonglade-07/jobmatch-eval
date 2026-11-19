@@ -55,8 +55,10 @@ class SearchResult:
         experience_level: Standardized seniority level of the position.
         description: Cleaned job description text.
         matched_skills: List of candidate skills explicitly found in posting text.
-        base_score: Retrieval score before personalization adjustments.
+        base_score: Retrieval score before personalization adjustments (min-max normalized to [0, 1]).
+        raw_score: Original raw score emitted by the retrieval strategy.
         skill_boost: Additive score boost earned from matching skills.
+        filter_tier: Metadata filter fallback tier (1=strict match, 2=relaxed seniority, 3=global backfill).
     """
 
     job_id: str
@@ -68,7 +70,9 @@ class SearchResult:
     description: str = ""
     matched_skills: List[str] = field(default_factory=list)
     base_score: float = 0.0
+    raw_score: float = 0.0
     skill_boost: float = 0.0
+    filter_tier: int = 1
 
     def __iter__(self) -> Iterator[Any]:
         """Allow tuple unpacking: job_id, score = result.
@@ -88,3 +92,4 @@ class SearchResult:
             job_id for 0, score for 1.
         """
         return (self.job_id, self.score)[index]
+
