@@ -1,0 +1,73 @@
+{
+  "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "note": "Relevance labels are rule-based proposed labels (jobmatch-rubric-v1) generated via deterministic heuristics; unverified by humans.",
+  "strategy": "bm25",
+  "ablation_results": [
+    {
+      "configuration": "Filters ON, Boost ON (w=0.2) [Main]",
+      "apply_filters": true,
+      "apply_boost": true,
+      "boost_weight": 0.2,
+      "precision@5": 0.52,
+      "recall@10": 0.5476,
+      "mrr": 0.8869,
+      "ndcg@10": 0.6147,
+      "unjudged_rate@10": 0.0
+    },
+    {
+      "configuration": "Filters ON, Boost OFF (w=0.0)",
+      "apply_filters": true,
+      "apply_boost": false,
+      "boost_weight": 0.0,
+      "precision@5": 0.52,
+      "recall@10": 0.5464,
+      "mrr": 0.869,
+      "ndcg@10": 0.6062,
+      "unjudged_rate@10": 0.0
+    },
+    {
+      "configuration": "Filters OFF, Boost ON (w=0.2)",
+      "apply_filters": false,
+      "apply_boost": true,
+      "boost_weight": 0.2,
+      "precision@5": 0.1333,
+      "recall@10": 0.1562,
+      "mrr": 0.275,
+      "ndcg@10": 0.1768,
+      "unjudged_rate@10": 0.8433
+    },
+    {
+      "configuration": "Filters OFF, Boost OFF (w=0.0) [Pure]",
+      "apply_filters": false,
+      "apply_boost": false,
+      "boost_weight": 0.0,
+      "precision@5": 0.1267,
+      "recall@10": 0.142,
+      "mrr": 0.2541,
+      "ndcg@10": 0.1622,
+      "unjudged_rate@10": 0.8533
+    },
+    {
+      "configuration": "Filters ON, Boost w=0.1",
+      "apply_filters": true,
+      "apply_boost": true,
+      "boost_weight": 0.1,
+      "precision@5": 0.52,
+      "recall@10": 0.5476,
+      "mrr": 0.8869,
+      "ndcg@10": 0.6135,
+      "unjudged_rate@10": 0.0
+    },
+    {
+      "configuration": "Filters ON, Boost w=0.4",
+      "apply_filters": true,
+      "apply_boost": true,
+      "boost_weight": 0.4,
+      "precision@5": 0.5267,
+      "recall@10": 0.5476,
+      "mrr": 0.8861,
+      "ndcg@10": 0.6122,
+      "unjudged_rate@10": 0.0
+    }
+  ]
+}

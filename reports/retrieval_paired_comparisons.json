@@ -1,0 +1,216 @@
+{
+  "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "note": "Relevance labels are rule-based proposed labels (jobmatch-rubric-v1) generated via deterministic heuristics; unverified by humans.",
+  "comparisons": {
+    "bm25_vs_dense": {
+      "strategy_a": "BM25 Only",
+      "strategy_b": "Dense Only (ChromaDB)",
+      "metrics": {
+        "precision@5": {
+          "mean_difference": 0.0933,
+          "ci_95": [
+            -0.0067,
+            0.1935
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "recall@10": {
+          "mean_difference": 0.1523,
+          "ci_95": [
+            0.0388,
+            0.2735
+          ],
+          "significant": true,
+          "interpretation": "Clear difference (statistically significant)"
+        },
+        "mrr": {
+          "mean_difference": 0.1863,
+          "ci_95": [
+            0.064,
+            0.3027
+          ],
+          "significant": true,
+          "interpretation": "Clear difference (statistically significant)"
+        },
+        "ndcg@10": {
+          "mean_difference": 0.1916,
+          "ci_95": [
+            0.1109,
+            0.261
+          ],
+          "significant": true,
+          "interpretation": "Clear difference (statistically significant)"
+        }
+      }
+    },
+    "hybrid_rrf_vs_bm25": {
+      "strategy_a": "Hybrid RRF (k=60)",
+      "strategy_b": "BM25 Only",
+      "metrics": {
+        "precision@5": {
+          "mean_difference": 0.0133,
+          "ci_95": [
+            -0.04,
+            0.0667
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "recall@10": {
+          "mean_difference": -0.0071,
+          "ci_95": [
+            -0.0556,
+            0.0405
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "mrr": {
+          "mean_difference": 0.023,
+          "ci_95": [
+            -0.0366,
+            0.0884
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "ndcg@10": {
+          "mean_difference": -0.008,
+          "ci_95": [
+            -0.0534,
+            0.0352
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        }
+      }
+    },
+    "hybrid_rrf_vs_dense": {
+      "strategy_a": "Hybrid RRF (k=60)",
+      "strategy_b": "Dense Only (ChromaDB)",
+      "metrics": {
+        "precision@5": {
+          "mean_difference": 0.1067,
+          "ci_95": [
+            0.04,
+            0.18
+          ],
+          "significant": true,
+          "interpretation": "Clear difference (statistically significant)"
+        },
+        "recall@10": {
+          "mean_difference": 0.1452,
+          "ci_95": [
+            0.0538,
+            0.2519
+          ],
+          "significant": true,
+          "interpretation": "Clear difference (statistically significant)"
+        },
+        "mrr": {
+          "mean_difference": 0.2093,
+          "ci_95": [
+            0.1033,
+            0.3179
+          ],
+          "significant": true,
+          "interpretation": "Clear difference (statistically significant)"
+        },
+        "ndcg@10": {
+          "mean_difference": 0.1836,
+          "ci_95": [
+            0.1223,
+            0.2389
+          ],
+          "significant": true,
+          "interpretation": "Clear difference (statistically significant)"
+        }
+      }
+    },
+    "cross_encoder_vs_hybrid_rrf": {
+      "strategy_a": "Hybrid + Cross-Encoder",
+      "strategy_b": "Hybrid RRF (k=60)",
+      "metrics": {
+        "precision@5": {
+          "mean_difference": -0.0067,
+          "ci_95": [
+            -0.0733,
+            0.06
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "recall@10": {
+          "mean_difference": -0.0012,
+          "ci_95": [
+            -0.0408,
+            0.0333
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "mrr": {
+          "mean_difference": -0.0456,
+          "ci_95": [
+            -0.1337,
+            0.034
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "ndcg@10": {
+          "mean_difference": -0.014,
+          "ci_95": [
+            -0.0579,
+            0.0311
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        }
+      }
+    },
+    "cross_encoder_vs_bm25": {
+      "strategy_a": "Hybrid + Cross-Encoder",
+      "strategy_b": "BM25 Only",
+      "metrics": {
+        "precision@5": {
+          "mean_difference": 0.0067,
+          "ci_95": [
+            -0.08,
+            0.08
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "recall@10": {
+          "mean_difference": -0.0083,
+          "ci_95": [
+            -0.0571,
+            0.0458
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "mrr": {
+          "mean_difference": -0.0226,
+          "ci_95": [
+            -0.1144,
+            0.0667
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        },
+        "ndcg@10": {
+          "mean_difference": -0.022,
+          "ci_95": [
+            -0.0807,
+            0.0383
+          ],
+          "significant": false,
+          "interpretation": "No clear difference (CI spans 0.0)"
+        }
+      }
+    }
+  }
+}

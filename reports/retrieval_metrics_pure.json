@@ -1,0 +1,103 @@
+{
+  "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "note": "Relevance labels are rule-based proposed labels (jobmatch-rubric-v1) generated via deterministic heuristics; unverified by humans.",
+  "setting": "Pure Retrieval (Filters OFF, Skill Boost OFF)",
+  "strategies": {
+    "bm25": {
+      "display_name": "BM25 Only",
+      "precision@5": 0.1267,
+      "precision@5_ci_95": [
+        0.06,
+        0.2002
+      ],
+      "recall@10": 0.142,
+      "recall@10_ci_95": [
+        0.0909,
+        0.2044
+      ],
+      "mrr": 0.2541,
+      "mrr_ci_95": [
+        0.1443,
+        0.3764
+      ],
+      "ndcg@10": 0.1622,
+      "ndcg@10_ci_95": [
+        0.0979,
+        0.2307
+      ],
+      "unjudged_rate@10": 0.8533
+    },
+    "dense": {
+      "display_name": "Dense Only (ChromaDB)",
+      "precision@5": 0.14,
+      "precision@5_ci_95": [
+        0.0867,
+        0.2
+      ],
+      "recall@10": 0.1382,
+      "recall@10_ci_95": [
+        0.0856,
+        0.1994
+      ],
+      "mrr": 0.295,
+      "mrr_ci_95": [
+        0.1797,
+        0.4382
+      ],
+      "ndcg@10": 0.1609,
+      "ndcg@10_ci_95": [
+        0.1023,
+        0.2309
+      ],
+      "unjudged_rate@10": 0.76
+    },
+    "hybrid_rrf": {
+      "display_name": "Hybrid RRF (k=60)",
+      "precision@5": 0.1467,
+      "precision@5_ci_95": [
+        0.08,
+        0.2267
+      ],
+      "recall@10": 0.141,
+      "recall@10_ci_95": [
+        0.087,
+        0.2007
+      ],
+      "mrr": 0.2929,
+      "mrr_ci_95": [
+        0.1685,
+        0.4458
+      ],
+      "ndcg@10": 0.1774,
+      "ndcg@10_ci_95": [
+        0.1037,
+        0.264
+      ],
+      "unjudged_rate@10": 0.8233
+    },
+    "cross_encoder": {
+      "display_name": "Hybrid + Cross-Encoder",
+      "precision@5": 0.16,
+      "precision@5_ci_95": [
+        0.0933,
+        0.2467
+      ],
+      "recall@10": 0.2155,
+      "recall@10_ci_95": [
+        0.1461,
+        0.3036
+      ],
+      "mrr": 0.3195,
+      "mrr_ci_95": [
+        0.2046,
+        0.4486
+      ],
+      "ndcg@10": 0.1859,
+      "ndcg@10_ci_95": [
+        0.1301,
+        0.2521
+      ],
+      "unjudged_rate@10": 0.7933
+    }
+  }
+}

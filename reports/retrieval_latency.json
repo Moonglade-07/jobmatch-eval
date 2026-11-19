@@ -1,0 +1,55 @@
+{
+  "hardware": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD",
+    "logical_cpu_cores": 12,
+    "pytorch_device": "cpu",
+    "pytorch_threads": 6,
+    "cuda_available": false,
+    "runs_per_query": 25
+  },
+  "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "bm25": {
+    "p50_ms": 5450.48,
+    "p95_ms": 5872.0,
+    "mean_ms": 5441.48,
+    "std_ms": 303.18,
+    "total_measurements": 25
+  },
+  "dense": {
+    "p50_ms": 449.15,
+    "p95_ms": 544.77,
+    "mean_ms": 453.1,
+    "std_ms": 55.22,
+    "total_measurements": 25
+  },
+  "hybrid_rrf": {
+    "p50_ms": 1249.39,
+    "p95_ms": 1488.81,
+    "mean_ms": 1249.79,
+    "std_ms": 122.58,
+    "total_measurements": 25
+  },
+  "cross_encoder": {
+    "retrieval_step": {
+      "description": "Hybrid RRF retrieval to produce top 50 candidates",
+      "p50_ms": 1236.08,
+      "p95_ms": 1501.1,
+      "mean_ms": 1248.36
+    },
+    "cross_encoder_scoring_step": {
+      "description": "Cross-Encoder Transformer forward pass re-ranking 50 pairs on CPU",
+      "p50_ms": 2405.34,
+      "p95_ms": 2574.84,
+      "mean_ms": 2391.62
+    },
+    "end_to_end": {
+      "description": "Total pipeline latency (Retrieval + Scoring)",
+      "p50_ms": 3636.65,
+      "p95_ms": 3843.8,
+      "mean_ms": 3639.98,
+      "std_ms": 149.23,
+      "total_measurements": 25
+    }
+  }
+}

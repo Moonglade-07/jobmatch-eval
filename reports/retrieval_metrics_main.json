@@ -1,0 +1,119 @@
+{
+  "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "note": "Relevance labels are rule-based proposed labels (jobmatch-rubric-v1) generated via deterministic heuristics; unverified by humans.",
+  "setting": "Main Product Pipeline (Location & Seniority Filter Fallback ON, Skill Boost ON w=0.2)",
+  "strategies": {
+    "bm25": {
+      "display_name": "BM25 Only",
+      "precision@5": 0.52,
+      "precision@5_ci_95": [
+        0.4132,
+        0.6333
+      ],
+      "recall@10": 0.5476,
+      "recall@10_ci_95": [
+        0.4652,
+        0.6271
+      ],
+      "mrr": 0.8869,
+      "mrr_ci_95": [
+        0.7917,
+        0.9702
+      ],
+      "ndcg@10": 0.6147,
+      "ndcg@10_ci_95": [
+        0.5183,
+        0.6957
+      ],
+      "unjudged_rate@10": 0.0,
+      "excluded_zero_relevant_profiles": [
+        "prof_07",
+        "prof_23"
+      ]
+    },
+    "dense": {
+      "display_name": "Dense Only (ChromaDB)",
+      "precision@5": 0.4267,
+      "precision@5_ci_95": [
+        0.3067,
+        0.5468
+      ],
+      "recall@10": 0.3953,
+      "recall@10_ci_95": [
+        0.313,
+        0.4759
+      ],
+      "mrr": 0.7006,
+      "mrr_ci_95": [
+        0.5562,
+        0.8494
+      ],
+      "ndcg@10": 0.4231,
+      "ndcg@10_ci_95": [
+        0.3255,
+        0.5219
+      ],
+      "unjudged_rate@10": 0.0,
+      "excluded_zero_relevant_profiles": [
+        "prof_07",
+        "prof_23"
+      ]
+    },
+    "hybrid_rrf": {
+      "display_name": "Hybrid RRF (k=60)",
+      "precision@5": 0.5333,
+      "precision@5_ci_95": [
+        0.42,
+        0.6467
+      ],
+      "recall@10": 0.5405,
+      "recall@10_ci_95": [
+        0.4657,
+        0.6212
+      ],
+      "mrr": 0.9099,
+      "mrr_ci_95": [
+        0.8231,
+        0.9821
+      ],
+      "ndcg@10": 0.6067,
+      "ndcg@10_ci_95": [
+        0.5175,
+        0.6796
+      ],
+      "unjudged_rate@10": 0.0,
+      "excluded_zero_relevant_profiles": [
+        "prof_07",
+        "prof_23"
+      ]
+    },
+    "cross_encoder": {
+      "display_name": "Hybrid + Cross-Encoder",
+      "precision@5": 0.5267,
+      "precision@5_ci_95": [
+        0.4133,
+        0.6333
+      ],
+      "recall@10": 0.5393,
+      "recall@10_ci_95": [
+        0.4674,
+        0.6186
+      ],
+      "mrr": 0.8643,
+      "mrr_ci_95": [
+        0.7631,
+        0.9537
+      ],
+      "ndcg@10": 0.5927,
+      "ndcg@10_ci_95": [
+        0.5045,
+        0.6652
+      ],
+      "unjudged_rate@10": 0.0,
+      "excluded_zero_relevant_profiles": [
+        "prof_07",
+        "prof_23"
+      ]
+    }
+  }
+}

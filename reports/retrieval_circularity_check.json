@@ -1,0 +1,38 @@
+{
+  "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "note": "Relevance labels are rule-based proposed labels (jobmatch-rubric-v1) generated via deterministic heuristics; unverified by humans.",
+  "audit_scope": "Relevant postings with ZERO literal match of candidate declared skills",
+  "sample_size_assessment": {
+    "total_zero_overlap_relevant_pairs": 51,
+    "profiles_with_zero_overlap_relevant_docs": 17,
+    "total_profiles": 30,
+    "is_sample_too_small": true,
+    "warning": "Subset is very small (51 total pairs across only 17/30 profiles). 13 profiles have 0 relevant items in this subset and are excluded from Recall/MRR means. High variance expected."
+  },
+  "strategy_metrics_on_zero_overlap_subset": {
+    "bm25": {
+      "precision@5": 0.0333,
+      "recall@10": 0.2588,
+      "mrr": 0.1751,
+      "ndcg@10": 0.0932
+    },
+    "dense": {
+      "precision@5": 0.06,
+      "recall@10": 0.3931,
+      "mrr": 0.3437,
+      "ndcg@10": 0.1383
+    },
+    "hybrid_rrf": {
+      "precision@5": 0.08,
+      "recall@10": 0.318,
+      "mrr": 0.2319,
+      "ndcg@10": 0.1124
+    },
+    "cross_encoder": {
+      "precision@5": 0.0467,
+      "recall@10": 0.2552,
+      "mrr": 0.3077,
+      "ndcg@10": 0.1098
+    }
+  }
+}
