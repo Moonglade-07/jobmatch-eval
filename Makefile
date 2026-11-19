@@ -1,4 +1,4 @@
-.PHONY: all setup ingest index test clean help
+.PHONY: all setup ingest index bench demo test clean help
 
 PYTHON := python
 PYTEST := pytest
@@ -9,6 +9,7 @@ help:
 	@echo "  make ingest   - Run data cleaning, deduplication, and sampling"
 	@echo "  make index    - Build ChromaDB vector index with SentenceTransformer"
 	@echo "  make bench    - Run hash-based sync benchmark and equivalence check"
+	@echo "  make demo     - Run side-by-side retrieval comparison demo"
 	@echo "  make test     - Execute full unit test suite"
 	@echo "  make all      - Run ingest, index, and tests sequentially"
 	@echo "  make clean    - Remove build and cache artifacts"
@@ -24,6 +25,9 @@ index:
 
 bench:
 	$(PYTHON) src/bench_sync.py
+
+demo:
+	$(PYTHON) src/demo_comparison.py
 
 test:
 	$(PYTEST) -v tests/
