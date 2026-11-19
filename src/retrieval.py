@@ -35,7 +35,12 @@ import torch
 
 from src.index import DEFAULT_CHROMA_DIR, DEFAULT_COLLECTION_NAME, DEFAULT_MODEL_NAME, format_passage
 from src.models import Profile, SearchResult
-from src.personalise import apply_skill_boost, build_query_text, filter_with_fallback
+from src.personalise import (
+    apply_skill_boost,
+    build_query_text,
+    filter_with_fallback,
+    is_remote_posting,
+)
 
 
 TOKEN_REGEX = re.compile(
@@ -163,6 +168,7 @@ class BM25Retriever(BaseRetriever):
                 raise FileNotFoundError(f"Clean postings not found at {data_path}")
             self.df = pd.read_parquet(data_path)
 
+        self.records: List[Dict[str, Any]] = self.df.to_dict("records")
         self.passages: List[str] = [
             format_passage(
                 title=str(row["title"]),
@@ -171,10 +177,17 @@ class BM25Retriever(BaseRetriever):
                 experience_level=str(row["experience_level"]),
                 description=str(row["description"]),
             )
-            for _, row in self.df.iterrows()
+            for row in self.records
         ]
         self.corpus_tokens = [tokenize_text(p) for p in self.passages]
         self.bm25 = BM25Okapi(self.corpus_tokens)
+        # Pre-warm is_remote cache for fast downstream location filtering
+        for row in self.records:
+            is_remote_posting(
+                title=str(row["title"]),
+                description=str(row["description"]),
+                location=str(row["location"]),
+            )
 
     def search(
         self,
@@ -207,7 +220,7 @@ class BM25Retriever(BaseRetriever):
 
         raw_results: List[SearchResult] = []
         for idx in top_indices:
-            row = self.df.iloc[idx]
+            row = self.records[idx]
             raw_s = float(round(doc_scores[idx], 4))
             raw_results.append(
                 SearchResult(

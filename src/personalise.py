@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -159,6 +160,7 @@ def apply_skill_boost(
     return boosted_results
 
 
+@lru_cache(maxsize=8192)
 def is_remote_posting(title: str = "", description: str = "", location: str = "") -> bool:
     """Detect whether a posting offers remote work based on location, title, or description.
 
