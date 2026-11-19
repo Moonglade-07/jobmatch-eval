@@ -91,6 +91,52 @@ def test_apply_skill_boost_reorders_correctly() -> None:
     assert boosted[1].skill_boost == 0.0
 
 
+def test_is_remote_posting_false_positives_and_negations() -> None:
+    """Test that is_remote_posting correctly filters out negations, verbs, and boilerplate."""
+    from src.personalise import is_remote_posting
+
+    # Explicit negations
+    assert not is_remote_posting(
+        title="Office Administrator",
+        description="Position is in our Grand Junction office and is unavailable for remote work.",
+    )
+    assert not is_remote_posting(
+        title="Load Builder",
+        description="Position performed onsite at our store. Remote work is not available for this role.",
+    )
+    assert not is_remote_posting(
+        title="Warehouse Worker",
+        description="On-site only role. No remote options.",
+    )
+
+    # Technical verbs ("remote into")
+    assert not is_remote_posting(
+        title="Service Desk Analyst",
+        description="Experience using Citrix to remote into users computers to troubleshoot.",
+    )
+
+    # Perks boilerplate
+    assert not is_remote_posting(
+        title="Receptionist",
+        description="Comprehensive healthcare, all at no direct cost. Other perks like flexible/remote opportunities.",
+    )
+
+    # True positives
+    assert is_remote_posting(
+        title="Chief Revenue Officer",
+        description="Executive-level position with flexibility for remote work and occasional travel.",
+    )
+    assert is_remote_posting(
+        title="Sales Director",
+        description="This is a full-time remote role for a Sales Director.",
+    )
+    assert is_remote_posting(
+        title="Customer Support",
+        location="Remote",
+        description="Handle customer tickets.",
+    )
+
+
 def test_matches_location_remote_strictly_requires_remote_job() -> None:
     """Test that preferred_location='Remote' strictly excludes onsite postings and accepts remote postings."""
     onsite = SearchResult(

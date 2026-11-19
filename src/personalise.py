@@ -162,6 +162,10 @@ def apply_skill_boost(
 def is_remote_posting(title: str = "", description: str = "", location: str = "") -> bool:
     """Detect whether a posting offers remote work based on location, title, or description.
 
+    Applies positive remote signal patterns while filtering out negations (e.g. 'unavailable
+    for remote work', 'remote work is not available'), technical remote access verbs (e.g.
+    'remote into users computers'), and generic boilerplate perks.
+
     Args:
         title: Job posting title.
         description: Job posting description text.
@@ -170,7 +174,8 @@ def is_remote_posting(title: str = "", description: str = "", location: str = ""
     Returns:
         True if the posting offers remote work, False otherwise.
     """
-    if "remote" in (location or "").lower():
+    loc = (location or "").lower()
+    if "remote" in loc:
         return True
 
     t = (title or "").lower()
@@ -178,13 +183,44 @@ def is_remote_posting(title: str = "", description: str = "", location: str = ""
         return True
 
     d = (description or "").lower()
-    if re.search(
-        r"\b(100%\s*remote|fully\s*remote|work\s*from\s*home|remote\s*work|remote\s*position|remote\s*role|remote\s*opportunity|remote\s*job|work\s*remotely|remote)\b",
-        d,
-    ):
-        if re.search(r"\b(no|not|non|neither)\s+remote\b", d):
-            return False
-        return True
+    if not d:
+        return False
+
+    # 1. Filter out explicit negations and disqualifying phrases
+    if re.search(r"\b(is\s+)?unavailable\s+for\s+remote\b", d):
+        return False
+    if re.search(r"\bremote\s+work\s+is\s+not\s+available\b", d):
+        return False
+    if re.search(r"\b(no|not|neither|non-?)\s+(a\s+)?remote\b", d):
+        return False
+    if re.search(r"\b(not\s+eligible\s+for\s+remote|on-?site\s+only)\b", d):
+        return False
+    if re.search(r"\bperks\s+like\s+flexible\/remote\b", d):
+        return False
+    if re.search(r"\bremote\s+into\b", d):
+        return False
+    if re.search(r"\ba\s+remote\s+career\s+transition\b", d):
+        return False
+
+    # 2. Match targeted positive remote signals
+    remote_signals = [
+        r"\b100%\s*remote\b",
+        r"\bfully\s*remote\b",
+        r"\bremote-?first\b",
+        r"\bwork\s*(from|at)\s*home\b",
+        r"\bwfh\b",
+        r"\bwork\s*remotely\b",
+        r"\bremote\s*(position|role|job|opportunity|environment|option|friendly|status)\b",
+        r"\bremote\s*work\b",
+        r"\b(flexibility\s+for\s+remote|option\s+(for\s+.*|to\s+be)\s+remote|can\s+be\s+remote|open\s+to\s+remote)\b",
+        r"\b(location|workplace):\s*remote\b",
+        r"\(\s*remote\b",
+        r"\b(part-time|full-time)\s+remote\b",
+    ]
+
+    for pattern in remote_signals:
+        if re.search(pattern, d):
+            return True
 
     return False
 

@@ -287,3 +287,26 @@ def test_skill_boost_reorders_dense() -> None:
     assert boosted[0].job_id == "dense_moderate_sim"
     assert boosted[0].score > boosted[1].score
     assert len(boosted[0].matched_skills) == 3
+
+
+def test_candidate_pool_normalization_top_50() -> None:
+    """Test that base score normalization over a pool of 50 candidates prevents rank 5 from having base_score 0.0."""
+    from src.personalise import apply_skill_boost
+
+    pool = [
+        SearchResult(
+            job_id=f"job_{i}",
+            score=round(100.0 - i * 1.5, 2),
+            title=f"Engineer {i}",
+            description="Python developer",
+            filter_tier=1,
+        )
+        for i in range(50)
+    ]
+
+    boosted = apply_skill_boost(pool, skills=["Python"], weight=0.2, normalize_base_scores=True)
+
+    assert len(boosted) == 50
+    assert boosted[0].base_score == 1.0
+    assert boosted[4].base_score > 0.85  # Rank 5 retains high base score, NOT 0.0!
+    assert boosted[49].base_score == 0.0  # Only bottom rank 50 is anchored to 0.0

@@ -18,22 +18,22 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 | Stage | Metric | Count / Value |
 |---|---|---|
 | Raw Pool | Downloaded Postings | 10000 |
-| Cleaned Pool | Valid Postings After Cleaning & Deduplication | 9252 |
+| Cleaned Pool | Valid Postings After Cleaning & Deduplication | 8052 |
 | Sampled Output | Final Sampled Dataset (`seed=42`) | 3000 |
-| Text Metric | Average Description Characters | 3588.4 chars |
-| Text Metric | Average Description Words | 501.1 words |
-| Text Metric | Median Words | 446 words |
+| Text Metric | Average Description Characters | 3637.38 chars |
+| Text Metric | Average Description Words | 505.49 words |
+| Text Metric | Median Words | 457 words |
 
 ### Experience Level Distribution
 
 | Seniority Tier | Count | Percentage |
 |---|---|---|
-| Mid-Senior level | 1040 | 34.67% |
-| Entry level | 1020 | 34.0% |
-| Not Specified | 739 | 24.63% |
-| Director | 101 | 3.37% |
-| Internship | 50 | 1.67% |
-| Executive | 50 | 1.67% |
+| Mid-Senior level | 1027 | 34.23% |
+| Entry level | 984 | 32.8% |
+| Not Specified | 746 | 24.87% |
+| Director | 126 | 4.2% |
+| Internship | 63 | 2.1% |
+| Executive | 54 | 1.8% |
 
 ### Measured Indexing Performance
 
@@ -43,8 +43,8 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 | Embedding Model | `sentence-transformers/all-MiniLM-L6-v2` |
 | Embedding Dimension | 384 |
 | Total Documents Indexed | 3000 |
-| Indexing Time | 153.75 s |
-| Indexing Throughput | 19.51 docs/sec |
+| Indexing Time | 159.59 s |
+| Indexing Throughput | 18.8 docs/sec |
 | Metadata Fields | `job_id, title, company, location, experience_level, content_hash` |
 
 ---
@@ -64,9 +64,9 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 
 | Strategy | Mean Latency | Latency Std Dev | Effective Throughput |
 |---|---|---|---|
-| Full Re-Index (from scratch) | 166.808 s | 16.475 s | 17.98 docs/sec |
-| Hash-Based Incremental Sync | **15.089 s** | 4.22 s | **198.82 docs/sec** |
-| **Speedup Factor** | **11.05x** | — | — |
+| Full Re-Index (from scratch) | 159.636 s | 8.408 s | 18.79 docs/sec |
+| Hash-Based Incremental Sync | **12.295 s** | 0.973 s | **244.0 docs/sec** |
+| **Speedup Factor** | **12.98x** | — | — |
 
 ### Index State Equivalence Verification
 - **Verification Status:** PASSED (100% Identical)

@@ -23,25 +23,25 @@
   "benchmark_runs": 3,
   "full_reindex": {
     "run_times_seconds": [
-      152.29,
-      163.42,
-      184.713
+      157.745,
+      152.335,
+      168.828
     ],
-    "mean_seconds": 166.808,
-    "std_seconds": 16.475,
-    "throughput_docs_per_sec": 17.98
+    "mean_seconds": 159.636,
+    "std_seconds": 8.408,
+    "throughput_docs_per_sec": 18.79
   },
   "incremental_sync": {
     "run_times_seconds": [
-      13.207,
-      19.923,
-      12.137
+      11.641,
+      11.831,
+      13.414
     ],
-    "mean_seconds": 15.089,
-    "std_seconds": 4.22,
-    "throughput_effective_docs_per_sec": 198.82
+    "mean_seconds": 12.295,
+    "std_seconds": 0.973,
+    "throughput_effective_docs_per_sec": 244.0
   },
-  "speedup_factor": 11.05,
+  "speedup_factor": 12.98,
   "state_equivalence_verification": {
     "passed": true,
     "synced_document_count": 3000,

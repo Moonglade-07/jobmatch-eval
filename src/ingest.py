@@ -215,9 +215,15 @@ def clean_dataframe(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, int]]:
     ]
     df["location_norm"] = df["location"].astype(str).apply(normalize_location)
 
-    # Deduplicate on (title, company, description)
+    # Deduplicate on (company_clean, title_clean) and (company_clean, description_clean)
+    # to eliminate duplicate postings and identical job templates from the same company
     df = df.drop_duplicates(
-        subset=["title_clean", "company_clean", "description_clean"]
+        subset=["company_clean", "title_clean"],
+        keep="first",
+    ).copy()
+    df = df.drop_duplicates(
+        subset=["company_clean", "description_clean"],
+        keep="first",
     ).copy()
     counts["after_dedupe"] = len(df)
 

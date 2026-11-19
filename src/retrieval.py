@@ -224,16 +224,17 @@ class BM25Retriever(BaseRetriever):
                 )
             )
 
+        candidate_pool_depth = max(k, 50)
         candidates = raw_results
         if apply_filters:
             candidates, _ = filter_with_fallback(
                 candidates,
                 preferred_location=profile.preferred_location,
                 seniority=profile.seniority,
-                k=k,
+                k=candidate_pool_depth,
             )
         else:
-            candidates = candidates[:k]
+            candidates = candidates[:candidate_pool_depth]
 
         if apply_boost:
             candidates = apply_skill_boost(
@@ -349,16 +350,17 @@ class DenseRetriever(BaseRetriever):
                 )
             )
 
+        candidate_pool_depth = max(k, 50)
         candidates = raw_results
         if apply_filters:
             candidates, _ = filter_with_fallback(
                 candidates,
                 preferred_location=profile.preferred_location,
                 seniority=profile.seniority,
-                k=k,
+                k=candidate_pool_depth,
             )
         else:
-            candidates = candidates[:k]
+            candidates = candidates[:candidate_pool_depth]
 
         if apply_boost:
             candidates = apply_skill_boost(
@@ -411,7 +413,8 @@ class HybridRRFRetriever(BaseRetriever):
         Returns:
             Ranked list of fused SearchResult objects.
         """
-        pool_size = max(k * 10, 100)
+        candidate_pool_depth = max(k, 50)
+        pool_size = max(candidate_pool_depth * 2, 100)
 
         # Retrieve candidate pools without applying filters yet (filters applied after fusion)
         bm25_pool = self.bm25_retriever.search(
@@ -438,10 +441,10 @@ class HybridRRFRetriever(BaseRetriever):
                 candidates,
                 preferred_location=profile.preferred_location,
                 seniority=profile.seniority,
-                k=k,
+                k=candidate_pool_depth,
             )
         else:
-            candidates = candidates[:k]
+            candidates = candidates[:candidate_pool_depth]
 
         if apply_boost:
             candidates = apply_skill_boost(
@@ -504,10 +507,11 @@ class CrossEncoderRetriever(BaseRetriever):
         """
         query_text = build_query_text(profile)
 
-        # 1. Retrieve top candidates from hybrid fusion
+        # 1. Retrieve top candidates from hybrid fusion (top 50 candidate pool)
+        candidate_pool_depth = max(k, self.top_candidates_depth)
         candidates = self.hybrid_retriever.search(
             profile=profile,
-            k=self.top_candidates_depth,
+            k=candidate_pool_depth,
             apply_filters=apply_filters,
             apply_boost=False,
         )

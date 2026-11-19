@@ -172,11 +172,19 @@ def test_clean_dataframe_deduplication() -> None:
             "formatted_experience_level": "Mid-Senior level",
         },
         {
-            "job_id": "103",  # Different description
+            "job_id": "103",  # Different title
             "company_name": "TechCorp",
-            "title": "ML Engineer",
+            "title": "Data Scientist",
             "location": "Remote",
             "description": "Work on computer vision.",
+            "formatted_experience_level": "Mid-Senior level",
+        },
+        {
+            "job_id": "104",  # Duplicate company + title with different location
+            "company_name": "TechCorp",
+            "title": "Data Scientist",
+            "location": "New York, NY",
+            "description": "Work on computer vision in NY office.",
             "formatted_experience_level": "Mid-Senior level",
         },
     ]

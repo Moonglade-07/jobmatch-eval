@@ -4,8 +4,8 @@
   "persist_directory": "chroma_db",
   "embedding_dimension": 384,
   "total_documents_indexed": 3000,
-  "index_build_time_seconds": 153.75,
-  "indexing_throughput_docs_sec": 19.51,
+  "index_build_time_seconds": 159.59,
+  "indexing_throughput_docs_sec": 18.8,
   "metadata_fields": [
     "job_id",
     "title",
