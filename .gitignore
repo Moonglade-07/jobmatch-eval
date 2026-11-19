@@ -29,8 +29,10 @@ chroma*/
 *.sqlite3
 *.duckdb
 
-# Data & Large assets
-data/
+# Data & Large assets (raw postings & parquet indexes excluded; eval metadata tracked)
+data/*
+!data/eval/
+!data/eval/**
 *.parquet
 *.arrow
 *.bin

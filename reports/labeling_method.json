@@ -1,0 +1,38 @@
+{
+  "labeling_approach": "Deterministic Rubric-Guided Relevance Evaluation",
+  "evaluator_model": "jobmatch-rubric-v1 (Rule-based expert heuristic alignment)",
+  "rubric_documentation": "docs/LABELING.md",
+  "random_seed": 42,
+  "sample_rate_must_review": 0.25,
+  "total_profiles_evaluated": 30,
+  "total_pooled_pairs": 1037,
+  "must_review_count": 260,
+  "label_distribution": {
+    "label_0": {
+      "count": 757,
+      "percentage": 73.0
+    },
+    "label_1": {
+      "count": 255,
+      "percentage": 24.59
+    },
+    "label_2": {
+      "count": 25,
+      "percentage": 2.41
+    }
+  },
+  "pooling_parameters": {
+    "top_k_per_strategy": 20,
+    "strategies": [
+      "bm25",
+      "dense",
+      "hybrid_rrf",
+      "cross_encoder"
+    ]
+  },
+  "rubric_criteria": {
+    "label_0": "Irrelevant: Domain disconnect, incompatible location, severe seniority clash, or zero technical overlap.",
+    "label_1": "Partially Relevant: Adjacent technical role/domain, transferable core skills, acceptable stretch seniority, or career-changer fit.",
+    "label_2": "Strongly Relevant: Direct target role match, high core skill synergy, compatible seniority, and satisfied location."
+  }
+}

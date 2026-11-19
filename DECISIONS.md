@@ -108,5 +108,17 @@ This document records all engineering decisions, model justifications, trade-off
   - Regex boundary matching `(?<![\w\+\#]){skill}(?![\w\+\#])` prevents false positives (e.g., `C` inside `Cloud` or `Java` inside `JavaScript`) while supporting programming languages with symbols (`C++`, `C#`, `.NET`).
   - Every `SearchResult` explicitly carries `filter_tier: int` (1, 2, or 3), `raw_score`, `base_score`, `skill_boost`, and `matched_skills`.
 
+---
+
+## Decision 8: Candidate Pooling, Programmatic Tier 1 Guardrail, and Graded Labeling (Phase 2A)
+
+- **Context**: Evaluating retrieval systems requires an unbiased ground-truth dataset. If test pairs are selected from only one retrieval strategy (e.g. dense vector search), evaluation metrics systematically favor that retriever (pooling bias). Furthermore, test candidate profiles must be sufficiently covered in the underlying index to prevent evaluation on degenerate empty pools.
+- **Decision**:
+  1. *Programmatic Tier 1 Guardrail*: Before finalizing any candidate profile, a programmatic check enforces that at least 50 postings in the 3,000 index pass the strict Tier 1 filter (`preferred_location` and `seniority`). All 30 authored profiles passed this check (ranging from 92 to 329 matching postings).
+  2. *Synthetic Profile Authorship*: All 30 candidate profiles in `data/eval/profiles.json` are 100% hand-authored synthetic inputs (never scraped or copied from the real job postings), representing diverse tech disciplines, standard entry/mid-senior tiers, 2 non-standard seniority edges (1 Director, 1 Internship), and 4 hard cases (2 career changers, 2 vague profiles).
+  3. *Unbiased Candidate Pooling*: For every profile, the top 20 candidates from all 4 retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) are pooled via set union, yielding 1,037 unique `(profile, job)` pairs.
+  4. *Graded 3-Point Rubric (`docs/LABELING.md`)*: Graded labels `{0: Irrelevant, 1: Partially Relevant, 2: Strongly Relevant}` are proposed deterministically based on four core dimensions: role alignment, skill overlap, seniority compatibility, and location feasibility.
+  5. *Quality Control & Review Sampling*: A fixed-seed (seed=42) 25% random sample (260 pairs) is marked as `must_review = True` in `labels_proposed.csv` for human audit and inter-rater agreement computation (Cohen's weighted kappa and confusion matrices in Phase 2B).
+
 
 

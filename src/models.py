@@ -16,6 +16,8 @@ class Profile:
         preferred_location: Target geographic location or remote preference.
         seniority: Desired seniority tier (e.g. 'Entry level', 'Mid-Senior level').
         target_role: Target role headline (e.g. 'Machine Learning Engineer').
+        profile_id: Unique string identifier for the profile.
+        is_synthetic: Flag indicating whether profile is hand-authored synthetic test input.
     """
 
     resume_text: str
@@ -23,6 +25,8 @@ class Profile:
     preferred_location: str = ""
     seniority: str = ""
     target_role: str = ""
+    profile_id: str = ""
+    is_synthetic: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert profile instance to dictionary.
@@ -31,11 +35,13 @@ class Profile:
             Dictionary representation of candidate profile.
         """
         return {
-            "resume_text": self.resume_text,
-            "skills": list(self.skills),
-            "preferred_location": self.preferred_location,
-            "seniority": self.seniority,
+            "profile_id": self.profile_id,
             "target_role": self.target_role,
+            "seniority": self.seniority,
+            "preferred_location": self.preferred_location,
+            "skills": list(self.skills),
+            "resume_text": self.resume_text,
+            "is_synthetic": self.is_synthetic,
         }
 
 

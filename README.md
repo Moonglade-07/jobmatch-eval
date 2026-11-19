@@ -100,6 +100,26 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 
 ---
 
+## Phase 2A: Evaluation Set, Candidate Pooling & Relevance Labels
+
+### Test Candidate Profiles (`data/eval/profiles.json`)
+- **Profile Provenance**: **100% Hand-Authored Synthetic Test Inputs** (expressly crafted to benchmark diverse domains, career changers, and edge cases). All 3,000 job postings in `data/jobs_clean.parquet` remain 100% real LinkedIn postings.
+- **Diversity Coverage**: 30 profiles spanning Software Engineering, Data/ML, DevOps/SRE, Product Management, QA, Security, Database Admin, Embedded Systems, and BI.
+- **Strict Tier 1 Gate**: Every profile is programmatically verified to have **$\ge 50$ postings** matching its location and seniority under strict Tier 1 filtering before inclusion.
+- **Seniority Constraints**: Standard Mid-Senior (18) and Entry level (10) focus, with exactly 2 non-standard seniority edge cases (1 Director, 1 Internship).
+- **Hard Cases (4 profiles)**: Includes 2 career changers (Math Teacher $	o$ Data Analyst; Mechanical Engineer $	o$ Junior Developer) and 2 vague technical background profiles.
+
+### Candidate Pooling & Relevance Labels (`labels_proposed.csv`)
+- **Unbiased Pooling**: Top 20 candidates retrieved across all four retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) and pooled via union per profile (**1,037 total pairs**).
+- **Graded Rubric**: 3-point relevance scale (`0 = Irrelevant`, `1 = Partially Relevant`, `2 = Strongly Relevant`) documented in [`docs/LABELING.md`](docs/LABELING.md).
+- **Quality Audit Sample**: A stratified random **25% subset (260 pairs, seed=42)** is marked as `must_review = True` for human verification.
+- **Label Distribution**:
+  - **Label 0 (Irrelevant)**: 757 pairs (73.00%)
+  - **Label 1 (Partially Relevant)**: 255 pairs (24.59%)
+  - **Label 2 (Strongly Relevant)**: 25 pairs (2.41%)
+
+---
+
 ## Project Structure
 
 ```text
@@ -112,24 +132,33 @@ job-search-project/
 ├── pyproject.toml            # Pytest configuration and project metadata
 ├── README.md                 # System overview and measured results table
 ├── requirements.txt          # Pinned dependency manifest
+├── labels_proposed.csv       # 1,037 pooled candidate pairs with proposed labels and 25% audit sample
 ├── run_all.bat               # Windows one-command execution script
 ├── run_all.sh                # Linux/macOS one-command execution script
-├── data/                     # Data directory (gitignored)
+├── data/                     # Data directory (parquet/csv ignored; eval metadata tracked)
 │   ├── raw_postings.csv      # Downloaded raw postings pool
-│   └── jobs_clean.parquet    # Cleaned, deduplicated, sampled postings
+│   ├── jobs_clean.parquet    # Cleaned, deduplicated, sampled postings
+│   └── eval/                 # Evaluation suite assets
+│       ├── profiles.json     # 30 synthetic test profiles (hand-authored)
+│       └── labels_proposed.csv # Archived copy of proposed evaluation labels
+├── docs/                     # Documentation and standards
+│   └── LABELING.md           # Fixed 3-point relevance labeling rubric
 ├── reports/                  # Verified execution reports (JSON)
 │   ├── data_stats.json       # Ingestion and data cleaning statistics
 │   ├── index_stats.json      # Vector indexing benchmark statistics
+│   ├── labeling_method.json  # Phase 2A labeling method, rubric, model, and prompt
 │   └── sync_benchmark.json   # Hash-based incremental sync benchmark results
 ├── src/                      # Production implementation
 │   ├── __init__.py
 │   ├── bench_sync.py         # Sync benchmark and state equivalence verification
 │   ├── demo_comparison.py    # Side-by-side comparison across all 4 retrieval strategies
+│   ├── generate_eval_profiles.py # Phase 2A profile generation & Tier 1 verification
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
 │   ├── ingest.py             # Data loading, cleaning, deduplication, sampling
 │   ├── models.py             # Profile and SearchResult domain schemas
 │   ├── personalise.py        # Query synthesis, 3-tier filtering fallback, skill boost
+│   ├── pool_and_label.py     # Candidate pooling (union top 20 across 4 strategies) & labeling
 │   ├── retrieval.py          # Unified retrieval: BM25, Dense, Hybrid RRF, Cross-Encoder
 │   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
