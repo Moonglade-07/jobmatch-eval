@@ -102,7 +102,7 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 ### Benchmark Scope & Methodology
 - **30 Candidate Profiles**: Hand-authored synthetic profiles spanning Software Engineering, Data/ML, DevOps, Product Management, QA, and Security.
 - **Graded Relevance Labels**: Evaluated against rule-based proposed labels (`jobmatch-rubric-v1`) across 1,037 pooled candidate pairs.
-- **Protocol**: Unjudged documents in top $k$ treated as non-relevant (label 0). Profiles with zero relevant documents (`prof_07`, `prof_23`) are explicitly excluded from Recall@10 and MRR means (evaluated over 28 profiles).
+- **Protocol**: Unjudged documents in top $k$ treated as non-relevant (label 0). Profiles with zero relevant documents (`prof_07`: Mobile Developer, `prof_23`: Computer Vision Engineer) are explicitly excluded from Recall@10 and MRR means (evaluated over 28 profiles).
 - **Statistical Significance**: Seeded empirical bootstrap 95% confidence intervals ($N=1,000$ iterations) for all metric macro-averages and paired differences.
 - **In-Depth Analysis Report**: Comprehensive query case studies, statistical power analysis, and failure mode breakdowns are documented in [`reports/analysis_retrieval.md`](reports/analysis_retrieval.md).
 
@@ -111,26 +111,26 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 
 | Strategy | Precision@5 (95% CI) | Recall@10 (95% CI) | MRR (95% CI) | nDCG@10 (95% CI) | Unjudged Rate@10 | CPU p50 Latency | CPU p95 Latency |
 |---|---|---|---|---|---|---|---|
-| **BM25 Only** | 0.520 [0.41, 0.63] | 0.548 [0.47, 0.63] | 0.887 [0.79, 0.97] | 0.615 [0.52, 0.70] | 0.0% | 5450.5 ms | 5872.0 ms |
-| **Dense Only (ChromaDB)** | 0.427 [0.31, 0.55] | 0.395 [0.31, 0.48] | 0.701 [0.56, 0.85] | 0.423 [0.33, 0.52] | 0.0% | 449.1 ms | 544.8 ms |
-| **Hybrid RRF (k=60)** | 0.533 [0.42, 0.65] | 0.540 [0.47, 0.62] | 0.910 [0.82, 0.98] | 0.607 [0.52, 0.68] | 0.0% | 1249.4 ms | 1488.8 ms |
-| **Hybrid + Cross-Encoder** | 0.527 [0.41, 0.63] | 0.539 [0.47, 0.62] | 0.864 [0.76, 0.95] | 0.593 [0.50, 0.67] | 0.0% | 3636.7 ms | 3843.8 ms |
+| **BM25 Only** | 0.520 [0.41, 0.63] | 0.548 [0.47, 0.63] | 0.887 [0.79, 0.97] | 0.615 [0.52, 0.70] | 0.0% | 136.2 ms | 168.3 ms |
+| **Dense Only (ChromaDB)** | 0.427 [0.31, 0.55] | 0.395 [0.31, 0.48] | 0.701 [0.56, 0.85] | 0.423 [0.33, 0.52] | 0.0% | 74.2 ms | 91.3 ms |
+| **Hybrid RRF (k=60)** | 0.533 [0.42, 0.65] | 0.546 [0.47, 0.63] | 0.910 [0.82, 0.98] | 0.610 [0.52, 0.68] | 0.0% | 181.5 ms | 206.4 ms |
+| **Hybrid + Cross-Encoder** | 0.527 [0.41, 0.63] | 0.544 [0.47, 0.63] | 0.864 [0.76, 0.95] | 0.595 [0.51, 0.67] | 0.0% | 2479.3 ms | 2813.0 ms |
 
 > [!NOTE]
 > All four strategies exhibit 0.00% unjudged rate in top 10 under the main configuration because candidate pooling in Phase 2A pooled the top 20 candidates across these exact four retrieval streams.
 
-### 2. Secondary Setting: Pure Retrieval (Filters OFF, Skill Boost OFF)
+### 2. Secondary Setting: Pure Retrieval (Filters OFF, Skill Boost OFF) — Not comparable (labels pooled under filters, 76% unjudged)
 *Evaluated against model-proposed, unverified relevance labels*
 
 | Strategy | Precision@5 (95% CI) | Recall@10 (95% CI) | MRR (95% CI) | nDCG@10 (95% CI) | Unjudged Rate@10 |
 |---|---|---|---|---|---|
 | **BM25 Only** | 0.127 [0.06, 0.20] | 0.142 [0.09, 0.20] | 0.254 [0.14, 0.38] | 0.162 [0.10, 0.23] | 85.3% |
 | **Dense Only (ChromaDB)** | 0.140 [0.09, 0.20] | 0.138 [0.09, 0.20] | 0.295 [0.18, 0.44] | 0.161 [0.10, 0.23] | 76.0% |
-| **Hybrid RRF (k=60)** | 0.147 [0.08, 0.23] | 0.141 [0.09, 0.20] | 0.293 [0.17, 0.45] | 0.177 [0.10, 0.26] | 82.3% |
+| **Hybrid RRF (k=60)** | 0.147 [0.08, 0.23] | 0.141 [0.09, 0.20] | 0.292 [0.17, 0.44] | 0.177 [0.10, 0.26] | 82.3% |
 | **Hybrid + Cross-Encoder** | 0.160 [0.09, 0.25] | 0.215 [0.15, 0.30] | 0.320 [0.20, 0.45] | 0.186 [0.13, 0.25] | 79.3% |
 
-> [!IMPORTANT]
-> When location and seniority filters are disabled, the unjudged rate surges to **76% – 85%**. Postings retrieved from out-of-market locations across the broader index were never pooled or judged, and are treated as non-relevant (label 0). This confirms that domain filtering is essential for precision in production job matching.
+> [!WARNING]
+> **Not comparable (labels pooled under filters, 76% unjudged)**: Candidate pooling was performed under active location and seniority filters. Out-of-market jobs retrieved when filters are disabled were never pooled or evaluated, resulting in unjudged rates of 76%–85% (treated as non-relevant label 0). These numbers do not reflect pure retrieval quality.
 
 ### 3. Paired Statistical Significance (Bootstrap 95% CIs on Differences)
 *Evaluated against model-proposed, unverified relevance labels*
@@ -138,37 +138,39 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 | Comparison ($A$ vs $B$) | Metric | Mean Difference ($A - B$) | 95% Bootstrap CI | Statistical Conclusion |
 |---|---|---|---|---|
 | **BM25 vs Dense** | `precision@5` | +0.0933 | [-0.0067, 0.1935] | No clear difference (CI spans 0.0) |
-| **BM25 vs Dense** | `recall@10` | +0.1523 | [0.0388, 0.2735] | **Clear difference** |
-| **BM25 vs Dense** | `mrr` | +0.1863 | [0.0640, 0.3027] | **Clear difference** |
-| **BM25 vs Dense** | `ndcg@10` | +0.1916 | [0.1109, 0.2610] | **Clear difference** |
+| **BM25 vs Dense** | `recall@10` | +0.1523 | [0.0388, 0.2735] | **Clear difference against rule-based labels** |
+| **BM25 vs Dense** | `mrr` | +0.1863 | [0.0640, 0.3027] | **Clear difference against rule-based labels** |
+| **BM25 vs Dense** | `ndcg@10` | +0.1916 | [0.1109, 0.2610] | **Clear difference against rule-based labels** |
 | **Hybrid RRF vs BM25** | `precision@5` | +0.0133 | [-0.0400, 0.0667] | No clear difference (CI spans 0.0) |
-| **Hybrid RRF vs BM25** | `recall@10` | -0.0071 | [-0.0556, 0.0405] | No clear difference (CI spans 0.0) |
+| **Hybrid RRF vs BM25** | `recall@10` | -0.0020 | [-0.0494, 0.0450] | No clear difference (CI spans 0.0) |
 | **Hybrid RRF vs BM25** | `mrr` | +0.0230 | [-0.0366, 0.0884] | No clear difference (CI spans 0.0) |
-| **Hybrid RRF vs BM25** | `ndcg@10` | -0.0080 | [-0.0534, 0.0352] | No clear difference (CI spans 0.0) |
-| **Hybrid RRF vs Dense** | `precision@5` | +0.1067 | [0.0400, 0.1800] | **Clear difference** |
-| **Hybrid RRF vs Dense** | `recall@10` | +0.1452 | [0.0538, 0.2519] | **Clear difference** |
-| **Hybrid RRF vs Dense** | `mrr` | +0.2093 | [0.1033, 0.3179] | **Clear difference** |
-| **Hybrid RRF vs Dense** | `ndcg@10` | +0.1836 | [0.1223, 0.2389] | **Clear difference** |
+| **Hybrid RRF vs BM25** | `ndcg@10` | -0.0048 | [-0.0502, 0.0384] | No clear difference (CI spans 0.0) |
+| **Hybrid RRF vs Dense** | `precision@5` | +0.1067 | [0.0400, 0.1800] | **Clear difference against rule-based labels** |
+| **Hybrid RRF vs Dense** | `recall@10` | +0.1503 | [0.0618, 0.2597] | **Clear difference against rule-based labels** |
+| **Hybrid RRF vs Dense** | `mrr` | +0.2093 | [0.1033, 0.3179] | **Clear difference against rule-based labels** |
+| **Hybrid RRF vs Dense** | `ndcg@10` | +0.1868 | [0.1277, 0.2414] | **Clear difference against rule-based labels** |
 | **Cross-Encoder vs Hybrid RRF** | `precision@5` | -0.0067 | [-0.0733, 0.0600] | No clear difference (CI spans 0.0) |
 | **Cross-Encoder vs Hybrid RRF** | `recall@10` | -0.0012 | [-0.0408, 0.0333] | No clear difference (CI spans 0.0) |
 | **Cross-Encoder vs Hybrid RRF** | `mrr` | -0.0456 | [-0.1337, 0.0340] | No clear difference (CI spans 0.0) |
-| **Cross-Encoder vs Hybrid RRF** | `ndcg@10` | -0.0140 | [-0.0579, 0.0311] | No clear difference (CI spans 0.0) |
+| **Cross-Encoder vs Hybrid RRF** | `ndcg@10` | -0.0146 | [-0.0579, 0.0308] | No clear difference (CI spans 0.0) |
 | **Cross-Encoder vs BM25** | `precision@5` | +0.0067 | [-0.0800, 0.0800] | No clear difference (CI spans 0.0) |
-| **Cross-Encoder vs BM25** | `recall@10` | -0.0083 | [-0.0571, 0.0458] | No clear difference (CI spans 0.0) |
+| **Cross-Encoder vs BM25** | `recall@10` | -0.0032 | [-0.0524, 0.0517] | No clear difference (CI spans 0.0) |
 | **Cross-Encoder vs BM25** | `mrr` | -0.0226 | [-0.1144, 0.0667] | No clear difference (CI spans 0.0) |
-| **Cross-Encoder vs BM25** | `ndcg@10` | -0.0220 | [-0.0807, 0.0383] | No clear difference (CI spans 0.0) |
+| **Cross-Encoder vs BM25** | `ndcg@10` | -0.0193 | [-0.0781, 0.0410] | No clear difference (CI spans 0.0) |
 
 ### 4. Query Latency Profile on CPU (25 timed runs per step)
 *(Measured on AMD 12-core CPU, PyTorch CPU execution with `torch_threads=6`, `CUDA: False`)*
 
 | Architecture / Step | p50 Latency (ms) | p95 Latency (ms) | Mean Latency (ms) | Details / Operations |
 |---|---|---|---|---|
-| **Dense Only** | 449.15 | 544.77 | 453.1 | Query embedding (`all-MiniLM-L6-v2`) + ChromaDB HNSW |
-| **Hybrid RRF ($k=60$)** | 1249.39 | 1488.81 | 1249.79 | BM25 + Dense retrieval + RRF fusion |
-| **BM25 Only** | 5450.48 | 5872.0 | 5441.48 | Lexical BM25Okapi scoring over full corpus |
-| **Cross-Encoder: Step 1 (Retrieval)** | 1236.08 | 1501.1 | 1248.36 | Hybrid RRF candidate pool retrieval (top 50) |
-| **Cross-Encoder: Step 2 (Neural Scoring)** | 2405.34 | 2574.84 | 2391.62 | CPU Transformer forward pass re-ranking 50 pairs |
-| **Cross-Encoder: End-to-End Pipeline** | **3636.65** | **3843.8** | **3639.98** | Total two-stage retrieval and neural re-ranking |
+| **Dense Only** | 74.24 | 91.32 | 75.06 | Query embedding (`all-MiniLM-L6-v2`) + ChromaDB HNSW |
+| **BM25 Only** | 136.24 | 168.32 | 146.96 | Lexical BM25Okapi scoring over full corpus |
+| **Hybrid RRF ($k=60$)** | 181.46 | 206.44 | 177.55 | BM25 + Dense retrieval + RRF fusion |
+| **Cross-Encoder: Step 1 (Retrieval)** | 157.2 | 179.94 | 166.46 | Hybrid RRF candidate pool retrieval (top 50) |
+| **Cross-Encoder: Step 2 (Neural Scoring)** | 2337.29 | 2622.19 | 2371.4 | CPU Transformer forward pass re-ranking 50 pairs |
+| **Cross-Encoder: End-to-End Pipeline** | **2479.28** | **2813.02** | **2537.85** | Total two-stage retrieval and neural re-ranking |
+
+*One-off startup / index build times (outside timed queries): BM25 Index Build = 5992.1 ms, Dense Init = 877.8 ms, Cross-Encoder Load = 242.5 ms.*
 
 
 ### 5. Ablation Study: Filter, Boost, and Weight Tuning
@@ -183,26 +185,29 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 | Filters ON, Boost w=0.1 | 0.5200 | 0.5476 | 0.8869 | 0.6135 | 0.0% |
 | Filters ON, Boost w=0.4 | 0.5267 | 0.5476 | 0.8861 | 0.6122 | 0.0% |
 
-### 6. Circularity Audit: Relevant Subset with Zero Literal Skill Overlap
+### 6. Circularity Audit: Relevant Subset with Zero Literal Skill Overlap (Indicative Only: 51 pairs, 17 profiles)
 *Evaluated against model-proposed, unverified relevance labels*
 
 Subset consists of **51 relevant candidate postings across 17 profiles** that share zero literal keyword overlap with candidate declared skills (13 profiles had zero such postings and are excluded from Recall/MRR means):
 
-| Strategy | Precision@5 | Recall@10 | MRR | nDCG@10 |
+| Strategy | Precision@5 (95% CI) | Recall@10 (95% CI) | MRR (95% CI) | nDCG@10 (95% CI) |
 |---|---|---|---|---|
-| **BM25 Only** | 0.0333 | 0.2588 | 0.1751 | 0.0932 |
-| **Dense Only (ChromaDB)** | 0.0600 | 0.3931 | 0.3437 | 0.1383 |
-| **Hybrid RRF (k=60)** | 0.0800 | 0.3180 | 0.2319 | 0.1124 |
-| **Hybrid + Cross-Encoder** | 0.0467 | 0.2552 | 0.3077 | 0.1098 |
+| **BM25 Only** | 0.0333 [0.00, 0.08] | 0.2588 [0.12, 0.43] | 0.1751 [0.07, 0.31] | 0.0932 [0.04, 0.16] |
+| **Dense Only (ChromaDB)** | 0.0600 [0.02, 0.11] | 0.3931 [0.23, 0.57] | 0.3437 [0.15, 0.53] | 0.1383 [0.07, 0.21] |
+| **Hybrid RRF (k=60)** | 0.0800 [0.03, 0.14] | 0.3180 [0.16, 0.49] | 0.2319 [0.10, 0.39] | 0.1124 [0.05, 0.18] |
+| **Hybrid + Cross-Encoder** | 0.0467 [0.01, 0.08] | 0.2552 [0.12, 0.42] | 0.3077 [0.13, 0.51] | 0.1098 [0.05, 0.18] |
 
-> [!TIP]
-> When literal skill keywords are removed, **Dense Only outperforms BM25 Only** (+51.9% relative Recall@10, +96.3% relative MRR, and +48.4% relative nDCG@10). This directly confirms that dense embeddings discover semantic relevance when keyword markers are absent.
+> [!NOTE]
+> **Indicative Finding Only (51 pairs, 17 profiles)**: Evaluated on the subset of 51 relevant candidate postings across 17 profiles with zero literal skill matches (13 profiles have zero relevant items in this slice and are excluded from Recall/MRR means). Dense retrieval achieves Recall@10 of 0.3931 [0.2333, 0.5687] vs BM25 0.2588 [0.1245, 0.4265] and MRR of 0.3437 [0.1546, 0.5314] vs BM25 0.1751 [0.0727, 0.3139]. This indicates that dense vector retrieval can surface conceptually relevant postings when keyword markers are absent, but the small sample size and wide confidence intervals mean this is indicative only.
 
 ---
 
 ## 7. Limitations
 
 1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are rule-based proposed labels (`label_source: model_proposed`), with zero human evaluations conducted (`human_reviewed: false`). Evaluated retrieval metrics benchmark retriever alignment against rule-based heuristic criteria rather than human preference.
-2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. While the retrieval-independent audit identified 51 relevant candidates (18.21%) with zero skill overlap, 81.79% of relevant candidates share explicit skill keywords.
-3. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
-4. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
+2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. High BM25 scores reflect shared lexical signals with the rubric, not evidence that BM25 is the better retriever in absolute terms.
+3. **Retrieval-Independent Check is Indicative Only (51 pairs, 17 profiles)**: When evaluated on the 51 relevant candidates with zero literal skill matches, dense retrieval achieves higher recall and MRR than BM25, indicating semantic capability when keywords are missing. However, because only 17 profiles have any relevant documents in this slice, confidence intervals are wide and the result is indicative only.
+4. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
+5. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
+6. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+7. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.

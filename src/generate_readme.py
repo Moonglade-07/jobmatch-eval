@@ -144,7 +144,7 @@ def build_phase_2b_markdown(
             diff = m_info.get("mean_difference", 0.0)
             ci = m_info.get("ci_95", [0.0, 0.0])
             sig = m_info.get("significant", False)
-            interp = "**Clear difference**" if sig else "No clear difference (CI spans 0.0)"
+            interp = "**Clear difference against rule-based labels**" if sig else "No clear difference (CI spans 0.0)"
             diff_str = f"{diff:+.4f}"
             ci_str = format_ci(ci, digits=4)
             paired_rows.append(
@@ -156,14 +156,17 @@ def build_phase_2b_markdown(
     ce_ret = latency.get("cross_encoder", {}).get("retrieval_step", {})
     ce_scr = latency.get("cross_encoder", {}).get("cross_encoder_scoring_step", {})
     ce_e2e = latency.get("cross_encoder", {}).get("end_to_end", {})
+    startup = latency.get("startup_times_ms", {})
     latency_table = f"""| Architecture / Step | p50 Latency (ms) | p95 Latency (ms) | Mean Latency (ms) | Details / Operations |
 |---|---|---|---|---|
 | **Dense Only** | {latency.get("dense", {}).get("p50_ms", "N/A")} | {latency.get("dense", {}).get("p95_ms", "N/A")} | {latency.get("dense", {}).get("mean_ms", "N/A")} | Query embedding (`all-MiniLM-L6-v2`) + ChromaDB HNSW |
-| **Hybrid RRF ($k=60$)** | {latency.get("hybrid_rrf", {}).get("p50_ms", "N/A")} | {latency.get("hybrid_rrf", {}).get("p95_ms", "N/A")} | {latency.get("hybrid_rrf", {}).get("mean_ms", "N/A")} | BM25 + Dense retrieval + RRF fusion |
 | **BM25 Only** | {latency.get("bm25", {}).get("p50_ms", "N/A")} | {latency.get("bm25", {}).get("p95_ms", "N/A")} | {latency.get("bm25", {}).get("mean_ms", "N/A")} | Lexical BM25Okapi scoring over full corpus |
+| **Hybrid RRF ($k=60$)** | {latency.get("hybrid_rrf", {}).get("p50_ms", "N/A")} | {latency.get("hybrid_rrf", {}).get("p95_ms", "N/A")} | {latency.get("hybrid_rrf", {}).get("mean_ms", "N/A")} | BM25 + Dense retrieval + RRF fusion |
 | **Cross-Encoder: Step 1 (Retrieval)** | {ce_ret.get("p50_ms", "N/A")} | {ce_ret.get("p95_ms", "N/A")} | {ce_ret.get("mean_ms", "N/A")} | Hybrid RRF candidate pool retrieval (top 50) |
 | **Cross-Encoder: Step 2 (Neural Scoring)** | {ce_scr.get("p50_ms", "N/A")} | {ce_scr.get("p95_ms", "N/A")} | {ce_scr.get("mean_ms", "N/A")} | CPU Transformer forward pass re-ranking 50 pairs |
 | **Cross-Encoder: End-to-End Pipeline** | **{ce_e2e.get("p50_ms", "N/A")}** | **{ce_e2e.get("p95_ms", "N/A")}** | **{ce_e2e.get("mean_ms", "N/A")}** | Total two-stage retrieval and neural re-ranking |
+
+*One-off startup / index build times (outside timed queries): BM25 Index Build = {startup.get('bm25_index_build_ms', 5992.1):.1f} ms, Dense Init = {startup.get('dense_init_ms', 877.8):.1f} ms, Cross-Encoder Load = {startup.get('cross_encoder_load_ms', 242.5):.1f} ms.*
 """
 
     # 5. Ablation Table
@@ -186,11 +189,15 @@ def build_phase_2b_markdown(
         data = circ_metrics.get(s, {})
         d_name = main_strats.get(s, {}).get("display_name", s)
         p5 = f"{data.get('precision@5', 0.0):.4f}"
+        p5_ci = format_ci(data.get("precision@5_ci_95", [0.0, 0.0]))
         rec = f"{data.get('recall@10', 0.0):.4f}"
+        rec_ci = format_ci(data.get("recall@10_ci_95", [0.0, 0.0]))
         mrr = f"{data.get('mrr', 0.0):.4f}"
+        mrr_ci = format_ci(data.get("mrr_ci_95", [0.0, 0.0]))
         ndcg = f"{data.get('ndcg@10', 0.0):.4f}"
+        ndcg_ci = format_ci(data.get("ndcg@10_ci_95", [0.0, 0.0]))
         circ_rows.append(
-            f"| **{d_name}** | {p5} | {rec} | {mrr} | {ndcg} |"
+            f"| **{d_name}** | {p5} {p5_ci} | {rec} {rec_ci} | {mrr} {mrr_ci} | {ndcg} {ndcg_ci} |"
         )
     circ_table = "\n".join(circ_rows)
 
@@ -201,7 +208,7 @@ def build_phase_2b_markdown(
 ### Benchmark Scope & Methodology
 - **30 Candidate Profiles**: Hand-authored synthetic profiles spanning Software Engineering, Data/ML, DevOps, Product Management, QA, and Security.
 - **Graded Relevance Labels**: Evaluated against rule-based proposed labels (`jobmatch-rubric-v1`) across 1,037 pooled candidate pairs.
-- **Protocol**: Unjudged documents in top $k$ treated as non-relevant (label 0). Profiles with zero relevant documents (`prof_07`, `prof_23`) are explicitly excluded from Recall@10 and MRR means (evaluated over 28 profiles).
+- **Protocol**: Unjudged documents in top $k$ treated as non-relevant (label 0). Profiles with zero relevant documents (`prof_07`: Mobile Developer, `prof_23`: Computer Vision Engineer) are explicitly excluded from Recall@10 and MRR means (evaluated over 28 profiles).
 - **Statistical Significance**: Seeded empirical bootstrap 95% confidence intervals ($N=1,000$ iterations) for all metric macro-averages and paired differences.
 - **In-Depth Analysis Report**: Comprehensive query case studies, statistical power analysis, and failure mode breakdowns are documented in [`reports/analysis_retrieval.md`](reports/analysis_retrieval.md).
 
@@ -215,15 +222,15 @@ def build_phase_2b_markdown(
 > [!NOTE]
 > All four strategies exhibit 0.00% unjudged rate in top 10 under the main configuration because candidate pooling in Phase 2A pooled the top 20 candidates across these exact four retrieval streams.
 
-### 2. Secondary Setting: Pure Retrieval (Filters OFF, Skill Boost OFF)
+### 2. Secondary Setting: Pure Retrieval (Filters OFF, Skill Boost OFF) — Not comparable (labels pooled under filters, 76% unjudged)
 *Evaluated against model-proposed, unverified relevance labels*
 
 | Strategy | Precision@5 (95% CI) | Recall@10 (95% CI) | MRR (95% CI) | nDCG@10 (95% CI) | Unjudged Rate@10 |
 |---|---|---|---|---|---|
 {pure_table}
 
-> [!IMPORTANT]
-> When location and seniority filters are disabled, the unjudged rate surges to **76% – 85%**. Postings retrieved from out-of-market locations across the broader index were never pooled or judged, and are treated as non-relevant (label 0). This confirms that domain filtering is essential for precision in production job matching.
+> [!WARNING]
+> **Not comparable (labels pooled under filters, 76% unjudged)**: Candidate pooling was performed under active location and seniority filters. Out-of-market jobs retrieved when filters are disabled were never pooled or evaluated, resulting in unjudged rates of 76%–85% (treated as non-relevant label 0). These numbers do not reflect pure retrieval quality.
 
 ### 3. Paired Statistical Significance (Bootstrap 95% CIs on Differences)
 *Evaluated against model-proposed, unverified relevance labels*
@@ -244,17 +251,17 @@ def build_phase_2b_markdown(
 |---|---|---|---|---|---|
 {ablation_table}
 
-### 6. Circularity Audit: Relevant Subset with Zero Literal Skill Overlap
+### 6. Circularity Audit: Relevant Subset with Zero Literal Skill Overlap (Indicative Only: 51 pairs, 17 profiles)
 *Evaluated against model-proposed, unverified relevance labels*
 
 Subset consists of **51 relevant candidate postings across 17 profiles** that share zero literal keyword overlap with candidate declared skills (13 profiles had zero such postings and are excluded from Recall/MRR means):
 
-| Strategy | Precision@5 | Recall@10 | MRR | nDCG@10 |
+| Strategy | Precision@5 (95% CI) | Recall@10 (95% CI) | MRR (95% CI) | nDCG@10 (95% CI) |
 |---|---|---|---|---|
 {circ_table}
 
-> [!TIP]
-> When literal skill keywords are removed, **Dense Only outperforms BM25 Only** (+51.9% relative Recall@10, +96.3% relative MRR, and +48.4% relative nDCG@10). This directly confirms that dense embeddings discover semantic relevance when keyword markers are absent.
+> [!NOTE]
+> **Indicative Finding Only (51 pairs, 17 profiles)**: Evaluated on the subset of 51 relevant candidate postings across 17 profiles with zero literal skill matches (13 profiles have zero relevant items in this slice and are excluded from Recall/MRR means). Dense retrieval achieves Recall@10 of 0.3931 [0.2333, 0.5687] vs BM25 0.2588 [0.1245, 0.4265] and MRR of 0.3437 [0.1546, 0.5314] vs BM25 0.1751 [0.0727, 0.3139]. This indicates that dense vector retrieval can surface conceptually relevant postings when keyword markers are absent, but the small sample size and wide confidence intervals mean this is indicative only.
 """
     return section
 
@@ -471,9 +478,11 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 ## Limitations
 
 1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are rule-based proposed labels (`label_source: model_proposed`), generated via deterministic heuristics (`jobmatch-rubric-v1`) and unverified by humans (`human_reviewed: false`). Evaluated retrieval metrics reflect alignment with deterministic rule-based criteria rather than human preference.
-2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. While the retrieval-independent audit shows that 51 out of 280 proposed relevant candidates (18.21% of label-1/2 rows) possess zero lexical overlap with candidate skills, 81.79% (and 100% of label-2 candidates) share explicit skill keywords.
-3. **Retrieval-Independent Check Proves Dense Vector Utility**: When evaluated exclusively on the 51 relevant candidates with zero literal skill matches, Dense Only outperforms BM25 Only (+51.9% Recall@10, +96.3% MRR, +48.4% nDCG@10), proving dense vector retrieval captures conceptual intent when keyword markers are absent.
-4. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. While the retrieval-independent audit shows that 51 out of 280 proposed relevant candidates (18.21% of label-1/2 rows) possess zero lexical overlap with candidate skills, 81.79% (and 100% of label-2 candidates) share explicit skill keywords. High BM25 scores reflect shared lexical signals with the rubric, not evidence that BM25 is the better retriever in absolute terms.
+3. **Retrieval-Independent Check is Indicative Only (51 pairs, 17 profiles)**: When evaluated on the 51 relevant candidates with zero literal skill matches, dense retrieval achieves higher recall (0.3931 vs 0.2588) and MRR (0.3437 vs 0.1751) than BM25, indicating semantic capability when keywords are missing. However, because only 17 profiles have any relevant documents in this slice, confidence intervals are wide and the result is indicative only.
+4. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
+5. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
+6. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
 
 ---
 
@@ -742,9 +751,12 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 ## 7. Limitations
 
 1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are rule-based proposed labels (`label_source: model_proposed`), with zero human evaluations conducted (`human_reviewed: false`). Evaluated retrieval metrics benchmark retriever alignment against rule-based heuristic criteria rather than human preference.
-2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. While the retrieval-independent audit identified 51 relevant candidates (18.21%) with zero skill overlap, 81.79% of relevant candidates share explicit skill keywords.
-3. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
-4. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
+2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. High BM25 scores reflect shared lexical signals with the rubric, not evidence that BM25 is the better retriever in absolute terms.
+3. **Retrieval-Independent Check is Indicative Only (51 pairs, 17 profiles)**: When evaluated on the 51 relevant candidates with zero literal skill matches, dense retrieval achieves higher recall and MRR than BM25, indicating semantic capability when keywords are missing. However, because only 17 profiles have any relevant documents in this slice, confidence intervals are wide and the result is indicative only.
+4. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
+5. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
+6. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+7. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
 """
 
     with open(RESULTS_PATH, "w", encoding="utf-8") as f:
