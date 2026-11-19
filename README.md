@@ -118,6 +118,28 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
   - **Label 1 (Partially Relevant)**: 255 pairs (24.59%)
   - **Label 2 (Strongly Relevant)**: 25 pairs (2.41%)
 
+### Inter-Annotator Agreement (`reports/label_agreement.json`)
+*(Measured across the 260 audit pairs)*
+
+| Metric | Measured Value | Interpretation |
+|---|---|---|
+| Human-Reviewed Pairs | 260 / 1037 (25.07%) | Meets $\ge 20\%$ audit threshold |
+| Unreviewed (Model-Proposed) | 777 / 1037 (74.93%) | Retained proposed ratings |
+| Disagreement Count | 20 pairs | Minor boundary refinements |
+| Disagreement Rate | **7.69%** | High inter-annotator alignment |
+| Agreement Rate | **92.31%** | Strong consistency |
+| **Cohen's Kappa (Quadratic Weighted)** | **0.8512** | **Almost Perfect Agreement** (>0.80) |
+| **Cohen's Kappa (Linear Weighted)** | **0.8238** | Almost Perfect Agreement (>0.80) |
+| **Ground Truth Qrels** | `data/eval/qrels.json` | 1,037 judgments (260 human-verified, 777 proposed) |
+
+#### Confusion Matrix (Rows: Model Proposed, Columns: Human Reviewer)
+| | Human 0 | Human 1 | Human 2 | Total Proposed |
+|---|---|---|---|---|
+| **Proposed 0** | 184 | 2 | 0 | 186 |
+| **Proposed 1** | 16 | 50 | 0 | 66 |
+| **Proposed 2** | 0 | 2 | 6 | 8 |
+| **Total Human** | 200 | 54 | 6 | 260 |
+
 ---
 
 ## Project Structure

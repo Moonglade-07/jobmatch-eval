@@ -1,0 +1,60 @@
+{
+  "total_candidate_pairs": 1037,
+  "reviewed_sample_size": 260,
+  "reviewed_sample_percentage": 25.07,
+  "unreviewed_model_count": 777,
+  "agreement_metrics": {
+    "disagreement_count": 20,
+    "disagreement_percentage": 7.69,
+    "agreement_percentage": 92.31,
+    "cohen_kappa_quadratic_weighted": 0.8512,
+    "cohen_kappa_linear_weighted": 0.8238,
+    "cohen_kappa_unweighted": 0.8059,
+    "kappa_interpretation": "Almost Perfect Agreement (>0.80)"
+  },
+  "confusion_matrix": {
+    "description": "Rows represent Model Proposed labels; Columns represent Human Reviewer labels.",
+    "labels": [
+      0,
+      1,
+      2
+    ],
+    "matrix": [
+      [
+        184,
+        2,
+        0
+      ],
+      [
+        16,
+        50,
+        0
+      ],
+      [
+        0,
+        2,
+        6
+      ]
+    ]
+  },
+  "provenance_counts": {
+    "human_verified_count": 260,
+    "human_verified_percentage": 25.07,
+    "model_proposed_count": 777,
+    "model_proposed_percentage": 74.93
+  },
+  "final_label_distribution": {
+    "label_0": {
+      "count": 771,
+      "percentage": 74.35
+    },
+    "label_1": {
+      "count": 243,
+      "percentage": 23.43
+    },
+    "label_2": {
+      "count": 23,
+      "percentage": 2.22
+    }
+  }
+}
