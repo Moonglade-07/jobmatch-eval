@@ -47,6 +47,34 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 | Indexing Throughput | 19.51 docs/sec |
 | Metadata Fields | `job_id, title, company, location, experience_level, content_hash` |
 
+---
+
+## Phase 1B: Incremental Index Synchronization Benchmark
+
+### Simulated Change Scenario
+- **Dataset Baseline Size:** 3000 postings
+- **Modifications:** 5.0% of descriptions (150 postings)
+- **Additions:** 2.0% new postings (60 postings)
+- **Deletions:** 2.0% removed postings (60 postings)
+- **Unchanged:** 2790 postings (zero embedding overhead)
+- **Benchmark Repetitions:** 3 runs per strategy
+
+### Measured Speedup & Throughput
+*(Numbers extracted directly from `reports/sync_benchmark.json`)*
+
+| Strategy | Mean Latency | Latency Std Dev | Effective Throughput |
+|---|---|---|---|
+| Full Re-Index (from scratch) | 166.808 s | 16.475 s | 17.98 docs/sec |
+| Hash-Based Incremental Sync | **15.089 s** | 4.22 s | **198.82 docs/sec** |
+| **Speedup Factor** | **11.05x** | — | — |
+
+### Index State Equivalence Verification
+- **Verification Status:** PASSED (100% Identical)
+- **Synced Document Count:** 3000
+- **Full Re-Index Document Count:** 3000
+- **ID Set Match:** True
+- **Content Hash Discrepancies:** 0
+
 
 ---
 
@@ -69,15 +97,19 @@ job-search-project/
 │   └── jobs_clean.parquet    # Cleaned, deduplicated, sampled postings
 ├── reports/                  # Verified execution reports (JSON)
 │   ├── data_stats.json       # Ingestion and data cleaning statistics
-│   └── index_stats.json      # Vector indexing benchmark statistics
+│   ├── index_stats.json      # Vector indexing benchmark statistics
+│   └── sync_benchmark.json   # Hash-based incremental sync benchmark results
 ├── src/                      # Production implementation
 │   ├── __init__.py
+│   ├── bench_sync.py         # Sync benchmark and state equivalence verification
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
-│   └── ingest.py             # Data loading, cleaning, deduplication, sampling
+│   ├── ingest.py             # Data loading, cleaning, deduplication, sampling
+│   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
     ├── test_index.py         # Embedding, hashing, and ChromaDB unit tests
-    └── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
+    ├── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
+    └── test_sync.py          # Incremental sync unit tests (mock embedder)
 ```
 
 ---

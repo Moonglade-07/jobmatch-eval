@@ -13,6 +13,7 @@ from typing import Any, Dict
 
 DATA_STATS_PATH = Path("reports/data_stats.json")
 INDEX_STATS_PATH = Path("reports/index_stats.json")
+SYNC_STATS_PATH = Path("reports/sync_benchmark.json")
 README_PATH = Path("README.md")
 
 
@@ -32,13 +33,16 @@ def load_json_report(path: Path) -> Dict[str, Any]:
 
 
 def build_readme_markdown(
-    data_stats: Dict[str, Any], index_stats: Dict[str, Any]
+    data_stats: Dict[str, Any],
+    index_stats: Dict[str, Any],
+    sync_stats: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Construct full README content embedding verified stats from reports.
 
     Args:
         data_stats: Parsed dictionary from reports/data_stats.json.
         index_stats: Parsed dictionary from reports/index_stats.json.
+        sync_stats: Optional parsed dictionary from reports/sync_benchmark.json.
 
     Returns:
         Complete Markdown string for README.md.
@@ -67,6 +71,43 @@ def build_readme_markdown(
 | Indexing Time | {index_stats.get("index_build_time_seconds", "N/A")} s |
 | Indexing Throughput | {index_stats.get("indexing_throughput_docs_sec", "N/A")} docs/sec |
 | Metadata Fields | `{", ".join(index_stats.get("metadata_fields", []))}` |
+"""
+
+    sync_table = ""
+    if sync_stats:
+        mut_params = sync_stats.get("mutation_parameters", {})
+        changes = sync_stats.get("change_counts", {})
+        full = sync_stats.get("full_reindex", {})
+        sync = sync_stats.get("incremental_sync", {})
+        verif = sync_stats.get("state_equivalence_verification", {})
+
+        sync_table = f"""---
+
+## Phase 1B: Incremental Index Synchronization Benchmark
+
+### Simulated Change Scenario
+- **Dataset Baseline Size:** {sync_stats.get("dataset_baseline_size", "N/A")} postings
+- **Modifications:** {mut_params.get("modify_percentage", 0)}% of descriptions ({changes.get("modified_count", 0)} postings)
+- **Additions:** {mut_params.get("add_percentage", 0)}% new postings ({changes.get("added_count", 0)} postings)
+- **Deletions:** {mut_params.get("delete_percentage", 0)}% removed postings ({changes.get("deleted_count", 0)} postings)
+- **Unchanged:** {changes.get("unchanged_count", 0)} postings (zero embedding overhead)
+- **Benchmark Repetitions:** {sync_stats.get("benchmark_runs", 3)} runs per strategy
+
+### Measured Speedup & Throughput
+*(Numbers extracted directly from `reports/sync_benchmark.json`)*
+
+| Strategy | Mean Latency | Latency Std Dev | Effective Throughput |
+|---|---|---|---|
+| Full Re-Index (from scratch) | {full.get("mean_seconds", "N/A")} s | {full.get("std_seconds", "N/A")} s | {full.get("throughput_docs_per_sec", "N/A")} docs/sec |
+| Hash-Based Incremental Sync | **{sync.get("mean_seconds", "N/A")} s** | {sync.get("std_seconds", "N/A")} s | **{sync.get("throughput_effective_docs_per_sec", "N/A")} docs/sec** |
+| **Speedup Factor** | **{sync_stats.get("speedup_factor", "N/A")}x** | — | — |
+
+### Index State Equivalence Verification
+- **Verification Status:** {"PASSED (100% Identical)" if verif.get("passed") else "FAILED"}
+- **Synced Document Count:** {verif.get("synced_document_count", "N/A")}
+- **Full Re-Index Document Count:** {verif.get("full_reindex_document_count", "N/A")}
+- **ID Set Match:** {verif.get("id_sets_identical", False)}
+- **Content Hash Discrepancies:** {verif.get("hash_mismatches_count", 0)}
 """
 
     content = f"""# Job-Matching Search with Evaluation
@@ -102,6 +143,7 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 {level_rows}
 
 {index_table}
+{sync_table}
 
 ---
 
@@ -124,15 +166,19 @@ job-search-project/
 │   └── jobs_clean.parquet    # Cleaned, deduplicated, sampled postings
 ├── reports/                  # Verified execution reports (JSON)
 │   ├── data_stats.json       # Ingestion and data cleaning statistics
-│   └── index_stats.json      # Vector indexing benchmark statistics
+│   ├── index_stats.json      # Vector indexing benchmark statistics
+│   └── sync_benchmark.json   # Hash-based incremental sync benchmark results
 ├── src/                      # Production implementation
 │   ├── __init__.py
+│   ├── bench_sync.py         # Sync benchmark and state equivalence verification
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
-│   └── ingest.py             # Data loading, cleaning, deduplication, sampling
+│   ├── ingest.py             # Data loading, cleaning, deduplication, sampling
+│   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
     ├── test_index.py         # Embedding, hashing, and ChromaDB unit tests
-    └── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
+    ├── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
+    └── test_sync.py          # Incremental sync unit tests (mock embedder)
 ```
 
 ---
@@ -177,12 +223,13 @@ def update_readme() -> None:
     """Generate and overwrite README.md using metrics from reports/."""
     data_stats = load_json_report(DATA_STATS_PATH)
     index_stats = load_json_report(INDEX_STATS_PATH)
+    sync_stats = load_json_report(SYNC_STATS_PATH)
 
     if not data_stats:
         print(f"Warning: {DATA_STATS_PATH} not found. Skipping README update.")
         return
 
-    content = build_readme_markdown(data_stats, index_stats)
+    content = build_readme_markdown(data_stats, index_stats, sync_stats)
     with open(README_PATH, "w", encoding="utf-8") as f:
         f.write(content)
     print(f"Successfully generated {README_PATH} from reports/")
