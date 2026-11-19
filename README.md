@@ -75,6 +75,28 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 - **ID Set Match:** True
 - **Content Hash Discrepancies:** 0
 
+---
+
+## Phase 1C: Retrieval Strategies & Personalization
+
+### Evaluated Strategies
+1. **BM25 Only (`BM25Retriever`)**: Lexical keyword search using `rank_bm25.BM25Okapi` with domain-aware regex tokenization preserving technical symbols (`c++`, `c#`, `.net`, `python-3`).
+2. **Dense Only (`DenseRetriever`)**: Semantic vector retrieval using ChromaDB HNSW cosine similarity over `sentence-transformers/all-MiniLM-L6-v2` embeddings.
+3. **Hybrid RRF (`HybridRRFRetriever`)**: Reciprocal Rank Fusion combining lexical and dense streams with parameter $k_{rrf} = 60$:
+   $$RRF(d) = \sum_{s \in \{bm25, dense\}} \frac{1}{60 + \text{rank}_s(d)}$$
+4. **Hybrid + Cross-Encoder Re-Rank (`CrossEncoderRetriever`)**: Two-stage pipeline fusing top 50 candidates from hybrid RRF, then re-ranking via `cross-encoder/ms-marco-MiniLM-L-6-v2` cross-attention and sigmoid normalization.
+
+### Personalization & Filtering Pipeline
+- **Profile Query Synthesis**: Structured query generation combining target role, declared technical skills, seniority tier, and narrative resume text.
+- **Three-Tier Fallback Hierarchy**:
+  - **Tier 1 (Strict)**: Postings matching candidate preferred location (allowing "Remote") and seniority (allowing "Not Specified").
+  - **Tier 2 (Relaxed Seniority)**: If Tier 1 < $k$, relax seniority tier while preserving location constraint.
+  - **Tier 3 (Global Backfill)**: If Tier 2 < $k$, backfill remaining slots from top unfiltered rankings to guarantee $k$ results.
+- **Explainable Skill Boosting**:
+  - Additive score formula:
+    $$\text{final\_score} = \text{base\_score} + w \times \frac{|\text{matched\_skills}|}{|\text{candidate\_skills}|}$$
+    *(default weight $w = 0.2$)*.
+  - Word-boundary matching `(?<![\w\+\#]){skill}(?![\w\+\#])` prevents substring false-positives while preserving symbols like C++, C#, and .NET.
 
 ---
 
@@ -102,13 +124,19 @@ job-search-project/
 ├── src/                      # Production implementation
 │   ├── __init__.py
 │   ├── bench_sync.py         # Sync benchmark and state equivalence verification
+│   ├── demo_comparison.py    # Side-by-side comparison across all 4 retrieval strategies
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
 │   ├── ingest.py             # Data loading, cleaning, deduplication, sampling
+│   ├── models.py             # Profile and SearchResult domain schemas
+│   ├── personalise.py        # Query synthesis, 3-tier filtering fallback, skill boost
+│   ├── retrieval.py          # Unified retrieval: BM25, Dense, Hybrid RRF, Cross-Encoder
 │   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
     ├── test_index.py         # Embedding, hashing, and ChromaDB unit tests
     ├── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
+    ├── test_personalise.py   # Skill extraction, boost reordering, 3-tier fallback tests
+    ├── test_retrieval.py     # RRF hand-computed verification, BM25, Hybrid, Cross-Encoder tests
     └── test_sync.py          # Incremental sync unit tests (mock embedder)
 ```
 
@@ -130,6 +158,12 @@ python src/ingest.py
 
 # Dense vector indexing in ChromaDB
 python src/index.py
+
+# Benchmark incremental synchronization (Phase 1B)
+python src/bench_sync.py
+
+# Run side-by-side retrieval comparison demo (Phase 1C)
+python src/demo_comparison.py
 
 # Run full unit test suite
 pytest -v tests/
