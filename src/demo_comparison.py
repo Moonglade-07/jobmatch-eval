@@ -144,38 +144,54 @@ def print_comparison_table(
 
     # Strategy individual breakdown
     for strat_name, res_list in results.items():
+        tier_counts = {1: 0, 2: 0, 3: 0}
+        for res in res_list:
+            tier_counts[res.filter_tier] = tier_counts.get(res.filter_tier, 0) + 1
+
         print(f"\n--- Strategy: {strat_name} ---")
+        print(
+            f"  Filter Tier Distribution: "
+            f"Tier 1 (Strict): {tier_counts[1]} | "
+            f"Tier 2 (Relaxed Seniority): {tier_counts[2]} | "
+            f"Tier 3 (Global Backfill): {tier_counts[3]}"
+        )
         for rank, res in enumerate(res_list, 1):
             matched_str = ", ".join(res.matched_skills) if res.matched_skills else "None"
+            tier_label = {
+                1: "Tier 1 (Strict Match)",
+                2: "Tier 2 (Relaxed Seniority)",
+                3: "Tier 3 (Global Backfill)",
+            }.get(res.filter_tier, f"Tier {res.filter_tier}")
+
             print(
                 f"  Rank {rank} | Score: {res.score:.4f} "
-                f"(Base: {res.base_score:.4f}, Boost: +{res.skill_boost:.4f})\n"
+                f"(Base: {res.base_score:.4f}, Raw: {res.raw_score:.2f}, Boost: +{res.skill_boost:.4f}) | {tier_label}\n"
                 f"    ID: {res.job_id} | Title: {res.title} | Company: {res.company}\n"
                 f"    Location: {res.location} | Level: {res.experience_level}\n"
                 f"    Matched Skills ({len(res.matched_skills)}): {matched_str}"
             )
 
     # Side-by-side summary table
-    print("\n" + "=" * 120)
-    print(f"{'SIDE-BY-SIDE SUMMARY (TOP ' + str(k) + ')':^120}")
-    print("=" * 120)
+    print("\n" + "=" * 130)
+    print(f"{'SIDE-BY-SIDE SUMMARY (TOP ' + str(k) + ')':^130}")
+    print("=" * 130)
 
-    header = f"{'Rank':<5} | {'Strategy':<24} | {'Job ID':<10} | {'Score':<7} | {'Location':<14} | {'Title'}"
+    header = f"{'Rank':<5} | {'Strategy':<24} | {'Job ID':<10} | {'Score':<7} | {'Tier':<6} | {'Location':<14} | {'Title'}"
     print(header)
-    print("-" * 120)
+    print("-" * 130)
 
     for rank_idx in range(k):
         for strat_name in results.keys():
             res = results[strat_name][rank_idx] if rank_idx < len(results[strat_name]) else None
             if res:
-                title_truncated = (res.title[:45] + "..") if len(res.title) > 47 else res.title
+                title_truncated = (res.title[:42] + "..") if len(res.title) > 44 else res.title
                 print(
                     f"{rank_idx + 1:<5} | {strat_name:<24} | {res.job_id:<10} | "
-                    f"{res.score:<7.4f} | {res.location:<14} | {title_truncated}"
+                    f"{res.score:<7.4f} | Tier {res.filter_tier:<1} | {res.location:<14} | {title_truncated}"
                 )
         if rank_idx < k - 1:
-            print("-" * 120)
-    print("=" * 120)
+            print("-" * 130)
+    print("=" * 130)
 
 
 def main() -> None:
