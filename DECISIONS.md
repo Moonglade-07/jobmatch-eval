@@ -83,4 +83,27 @@ This document records all engineering decisions, model justifications, trade-off
   - **Atomic Deletions**: Detects and purges documents absent from new snapshots.
   - **Empirical Validation**: Benchmarking on 3,000 postings with realistic daily turnover (5% modified, 2% added, 2% deleted) showed an **11.05x speedup** (15.09s vs 166.81s) while guaranteeing 100% state equivalence with a fresh index.
 
+---
+
+## Decision 7: Multi-Strategy Retrieval, Personalization, and Ranking Hierarchy (Phase 1C)
+
+- **Context**: Candidates possess varied criteria (exact technical keywords, implicit domain context, location constraints, and seniority preferences). A single retrieval strategy is insufficient: lexical search misses synonyms; dense bi-encoders suffer from capacity limits and miss hard keywords; and strict metadata filtering risks returning zero results in specialized sub-niches.
+- **Evaluated Strategies**:
+  1. *BM25 Only*: Fast, exact token matching via `rank_bm25` with domain-aware regex tokenization preserving technical symbols (`C++`, `C#`, `.NET`, `Python-3`, `node.js`).
+  2. *Dense Only*: Semantic vector similarity via ChromaDB HNSW cosine index over `all-MiniLM-L6-v2` embeddings. Captures latent conceptual relevance.
+  3. *Hybrid RRF (Reciprocal Rank Fusion)*: Combines ranked lists from BM25 and Dense with parameter $k_{rrf} = 60$:
+     $$RRF(d) = \sum_{s \in \{\text{bm25}, \text{dense}\}} \frac{1}{60 + \text{rank}_s(d)}$$
+     RRF is scale-invariant and immune to disparate score distributions (BM25 raw unbounded scores vs dense cosine similarity).
+  4. *Hybrid + Cross-Encoder Re-Ranking*: High-recall stage fuses top candidates (depth = 50), followed by `cross-encoder/ms-marco-MiniLM-L-6-v2` scoring full cross-attention between candidate profile query and job text, normalized via sigmoid.
+- **Three-Tier Metadata Filter Fallback Hierarchy**:
+  - Hard filters can return empty result sets if no postings match both location and seniority.
+  - *Tier 1 (Strict)*: Strict match on candidate's preferred location (or `"Remote"`) AND seniority level (or `"Not Specified"`).
+  - *Tier 2 (Relaxed Seniority)*: If Tier 1 yields $< k$ results, retain location constraint but relax seniority to avoid geographic mismatches.
+  - *Tier 3 (Global Backfill)*: If Tier 2 yields $< k$ results, backfill remaining slots from top unfiltered candidates, guaranteeing exactly $\min(k, N)$ results without crashing or returning empty lists.
+- **Explainable Skill Boosting**:
+  - Formula: $\text{final\_score} = \text{base\_score} + w \times \frac{|\text{matched\_skills}|}{|\text{candidate\_skills}|}$ with default $w = 0.2$.
+  - Regex boundary matching `(?<![\w\+\#]){skill}(?![\w\+\#])` prevents false positives (e.g., `C` inside `Cloud` or `Java` inside `JavaScript`) while supporting programming languages with symbols (`C++`, `C#`, `.NET`).
+  - Transparently records `matched_skills` on each `SearchResult` for auditability in downstream explanations.
+
+
 
