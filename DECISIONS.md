@@ -95,15 +95,18 @@ This document records all engineering decisions, model justifications, trade-off
      $$RRF(d) = \sum_{s \in \{\text{bm25}, \text{dense}\}} \frac{1}{60 + \text{rank}_s(d)}$$
      RRF is scale-invariant and immune to disparate score distributions (BM25 raw unbounded scores vs dense cosine similarity).
   4. *Hybrid + Cross-Encoder Re-Ranking*: High-recall stage fuses top candidates (depth = 50), followed by `cross-encoder/ms-marco-MiniLM-L-6-v2` scoring full cross-attention between candidate profile query and job text, normalized via sigmoid.
-- **Three-Tier Metadata Filter Fallback Hierarchy**:
+- **Three-Tier Metadata Filter Fallback Hierarchy & Tier Preservation**:
   - Hard filters can return empty result sets if no postings match both location and seniority.
-  - *Tier 1 (Strict)*: Strict match on candidate's preferred location (or `"Remote"`) AND seniority level (or `"Not Specified"`).
+  - *Tier 1 (Strict)*: Strict match on candidate's preferred location (or `"Remote"`) AND seniority level (or `"Not Specified"`). Remote detection checks location string, title keywords (`remote`, `virtual`, `wfh`), and description phrases (`100% remote`, `work from home`).
   - *Tier 2 (Relaxed Seniority)*: If Tier 1 yields $< k$ results, retain location constraint but relax seniority to avoid geographic mismatches.
   - *Tier 3 (Global Backfill)*: If Tier 2 yields $< k$ results, backfill remaining slots from top unfiltered candidates, guaranteeing exactly $\min(k, N)$ results without crashing or returning empty lists.
-- **Explainable Skill Boosting**:
-  - Formula: $\text{final\_score} = \text{base\_score} + w \times \frac{|\text{matched\_skills}|}{|\text{candidate\_skills}|}$ with default $w = 0.2$.
+  - *Tier Sorting Priority*: Candidates are strictly sorted by `(filter_tier, -final_score)` ensuring Tier 1 strict matches always precede Tier 2 and Tier 3 results.
+- **Explainable Skill Boosting & Score Normalization**:
+  - Base scores from heterogeneous retrieval strategies (BM25 unbounded [0, 120+], Dense cosine [0, 1], RRF [0, 0.04]) are min-max normalized over candidate pools to $[0, 1]$ before boosting.
+  - Formula: $\text{final\_score} = \text{norm\_base\_score} + w \times \frac{|\text{matched\_skills}|}{|\text{candidate\_skills}|}$ with default $w = 0.2$.
+  - Min-max scaling ensures weight $w$ has an identical relative meaning (+20% of list range) across all 4 strategies, preventing BM25 raw scores from drowning out skill matches.
   - Regex boundary matching `(?<![\w\+\#]){skill}(?![\w\+\#])` prevents false positives (e.g., `C` inside `Cloud` or `Java` inside `JavaScript`) while supporting programming languages with symbols (`C++`, `C#`, `.NET`).
-  - Transparently records `matched_skills` on each `SearchResult` for auditability in downstream explanations.
+  - Every `SearchResult` explicitly carries `filter_tier: int` (1, 2, or 3), `raw_score`, `base_score`, `skill_boost`, and `matched_skills`.
 
 
 
