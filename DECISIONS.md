@@ -118,7 +118,7 @@ This document records all engineering decisions, model justifications, trade-off
   2. *Synthetic Profile Authorship*: All 30 candidate profiles in `data/eval/profiles.json` are 100% hand-authored synthetic inputs (never scraped or copied from the real job postings), representing diverse tech disciplines, standard entry/mid-senior tiers, 2 non-standard seniority edges (1 Director, 1 Internship), and 4 hard cases (2 career changers, 2 vague profiles).
   3. *Unbiased Candidate Pooling*: For every profile, the top 20 candidates from all 4 retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) are pooled via set union, yielding 1,037 unique `(profile, job)` pairs.
   4. *Graded 3-Point Rubric (`docs/LABELING.md`)*: Graded labels `{0: Irrelevant, 1: Partially Relevant, 2: Strongly Relevant}` are proposed deterministically based on four core dimensions: role alignment, skill overlap, seniority compatibility, and location feasibility.
-  5. *Quality Control & Review Sampling*: A fixed-seed (seed=42) 25% random sample (260 pairs) is marked as `must_review = True` in `labels_proposed.csv` for human audit and inter-rater agreement computation (Cohen's weighted kappa and confusion matrices in Phase 2B).
+  5. *Quality Control & Blinded Review Preparation*: The 260 random must-review pairs and all proposed label-2 pairs (277 total, union de-duplicated) are exported in blinded form in `labels_to_review.csv` (with empty `my_label` and shuffled within profile to blind proposals). Inter-rater agreement metrics (disagreement rate, Cohen's weighted kappa, and confusion matrix) will be computed only upon return of the human-annotated `labels_reviewed.csv`.
 
 
 

@@ -45,7 +45,7 @@ def test_compute_weighted_cohen_kappa_hand_computed_example() -> None:
 
 def test_evaluate_label_agreement_end_to_end(tmp_path: Path) -> None:
     """Test full pipeline on temporary CSV: agreement metrics, qrels, and report."""
-    csv_data = [
+    proposed_data = [
         {
             "profile_id": "p1",
             "job_id": "j1",
@@ -53,7 +53,7 @@ def test_evaluate_label_agreement_end_to_end(tmp_path: Path) -> None:
             "company": "Tech Corp",
             "key snippet of description": "Build ML models",
             "proposed_label": 2,
-            "my_label": 2,  # Agreement
+            "my_label": "",
             "must_review": True,
         },
         {
@@ -63,7 +63,7 @@ def test_evaluate_label_agreement_end_to_end(tmp_path: Path) -> None:
             "company": "App Co",
             "key snippet of description": "Write backend APIs",
             "proposed_label": 1,
-            "my_label": 0,  # Disagreement (human downgraded)
+            "my_label": "",
             "must_review": True,
         },
         {
@@ -73,18 +73,42 @@ def test_evaluate_label_agreement_end_to_end(tmp_path: Path) -> None:
             "company": "Finance Inc",
             "key snippet of description": "Balance sheet audits",
             "proposed_label": 0,
-            "my_label": "",  # Unreviewed -> final should be proposed (0)
+            "my_label": "",
             "must_review": False,
         },
     ]
-    df = pd.DataFrame(csv_data)
-    test_csv = tmp_path / "test_labels.csv"
+    df_prop = pd.DataFrame(proposed_data)
+    test_prop_csv = tmp_path / "labels_proposed.csv"
+    df_prop.to_csv(test_prop_csv, index=False)
+
+    # Simulated authentic returned review file with 2 annotations
+    reviewed_data = [
+        {
+            "profile_id": "p1",
+            "job_id": "j1",
+            "title": "ML Engineer",
+            "company": "Tech Corp",
+            "key snippet of description": "Build ML models",
+            "my_label": 2,  # Agreement (2 vs 2)
+        },
+        {
+            "profile_id": "p1",
+            "job_id": "j2",
+            "title": "Software Dev",
+            "company": "App Co",
+            "key snippet of description": "Write backend APIs",
+            "my_label": 0,  # Disagreement (human 0 vs proposed 1)
+        },
+    ]
+    df_rev = pd.DataFrame(reviewed_data)
+    test_reviewed_csv = tmp_path / "labels_reviewed.csv"
     test_qrels = tmp_path / "test_qrels.json"
     test_report = tmp_path / "test_report.json"
-    df.to_csv(test_csv, index=False)
+    df_rev.to_csv(test_reviewed_csv, index=False)
 
     report = evaluate_label_agreement(
-        labels_csv_path=test_csv,
+        reviewed_csv_path=test_reviewed_csv,
+        proposed_csv_path=test_prop_csv,
         qrels_path=test_qrels,
         report_path=test_report,
     )
@@ -108,3 +132,22 @@ def test_evaluate_label_agreement_end_to_end(tmp_path: Path) -> None:
     assert qrels_data["qrels"]["p1"]["j2"] == 0  # took human label (0), not proposed (1)
     assert qrels_data["qrels"]["p2"]["j3"] == 0  # unreviewed, took proposed (0)
 
+
+def test_evaluate_label_agreement_refuses_missing_or_invalid_filename(tmp_path: Path) -> None:
+    """Verify that evaluate_label_agreement refuses execution if file is missing or wrongly named."""
+    missing_csv = tmp_path / "nonexistent.csv"
+    with pytest.raises(FileNotFoundError, match="Required human review file .* not found"):
+        evaluate_label_agreement(reviewed_csv_path=missing_csv)
+
+    wrong_name_csv = tmp_path / "wrong_name.csv"
+    wrong_name_csv.write_text("my_label\n1\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid review file name"):
+        evaluate_label_agreement(reviewed_csv_path=wrong_name_csv)
+
+
+def test_evaluate_label_agreement_refuses_zero_annotations(tmp_path: Path) -> None:
+    """Verify that evaluate_label_agreement refuses execution if my_label is completely blank."""
+    empty_csv = tmp_path / "labels_reviewed.csv"
+    empty_csv.write_text("profile_id,job_id,my_label\np1,j1,\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Found 0 annotated rows in 'my_label' column"):
+        evaluate_label_agreement(reviewed_csv_path=empty_csv)

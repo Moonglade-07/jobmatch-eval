@@ -107,7 +107,7 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 - **Diversity Coverage**: 30 profiles spanning Software Engineering, Data/ML, DevOps/SRE, Product Management, QA, Security, Database Admin, Embedded Systems, and BI.
 - **Strict Tier 1 Gate**: Every profile is programmatically verified to have **$\ge 50$ postings** matching its location and seniority under strict Tier 1 filtering before inclusion.
 - **Seniority Constraints**: Standard Mid-Senior (18) and Entry level (10) focus, with exactly 2 non-standard seniority edge cases (1 Director, 1 Internship).
-- **Hard Cases (4 profiles)**: Includes 2 career changers (Math Teacher $	o$ Data Analyst; Mechanical Engineer $	o$ Junior Developer) and 2 vague technical background profiles.
+- **Hard Cases (4 profiles)**: Includes 2 career changers (Math Teacher $\to$ Data Analyst; Mechanical Engineer $\to$ Junior Developer) and 2 vague technical background profiles.
 
 ### Candidate Pooling & Relevance Labels (`labels_proposed.csv`)
 - **Unbiased Pooling**: Top 20 candidates retrieved across all four retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) and pooled via union per profile (**1,037 total pairs**).
@@ -118,27 +118,10 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
   - **Label 1 (Partially Relevant)**: 255 pairs (24.59%)
   - **Label 2 (Strongly Relevant)**: 25 pairs (2.41%)
 
-### Inter-Annotator Agreement (`reports/label_agreement.json`)
-*(Measured across the 260 audit pairs)*
-
-| Metric | Measured Value | Interpretation |
-|---|---|---|
-| Human-Reviewed Pairs | 260 / 1037 (25.07%) | Meets $\ge 20\%$ audit threshold |
-| Unreviewed (Model-Proposed) | 777 / 1037 (74.93%) | Retained proposed ratings |
-| Disagreement Count | 20 pairs | Minor boundary refinements |
-| Disagreement Rate | **7.69%** | High inter-annotator alignment |
-| Agreement Rate | **92.31%** | Strong consistency |
-| **Cohen's Kappa (Quadratic Weighted)** | **0.8512** | **Almost Perfect Agreement** (>0.80) |
-| **Cohen's Kappa (Linear Weighted)** | **0.8238** | Almost Perfect Agreement (>0.80) |
-| **Ground Truth Qrels** | `data/eval/qrels.json` | 1,037 judgments (260 human-verified, 777 proposed) |
-
-#### Confusion Matrix (Rows: Model Proposed, Columns: Human Reviewer)
-| | Human 0 | Human 1 | Human 2 | Total Proposed |
-|---|---|---|---|---|
-| **Proposed 0** | 184 | 2 | 0 | 186 |
-| **Proposed 1** | 16 | 50 | 0 | 66 |
-| **Proposed 2** | 0 | 2 | 6 | 8 |
-| **Total Human** | 200 | 54 | 6 | 260 |
+### Human Review Status
+- **Blinded Review File**: [`labels_to_review.csv`](labels_to_review.csv) (277 pooled candidates: 260 random sample + all proposed label-2 candidates, union de-duplicated and shuffled per profile).
+- **Review Guide**: [`docs/REVIEW_GUIDE.md`](docs/REVIEW_GUIDE.md) (single-page rubric and all 30 candidate profile summaries).
+- **Status**: **Awaiting Human Evaluation**. Inter-annotator agreement metrics (disagreement rate, Cohen's weighted kappa, and confusion matrix) will be computed only after `labels_reviewed.csv` is completed and returned.
 
 ---
 
@@ -155,6 +138,7 @@ job-search-project/
 ├── README.md                 # System overview and measured results table
 ├── requirements.txt          # Pinned dependency manifest
 ├── labels_proposed.csv       # 1,037 pooled candidate pairs with proposed labels and 25% audit sample
+├── labels_to_review.csv      # Blinded 277 candidate pairs for human evaluation
 ├── run_all.bat               # Windows one-command execution script
 ├── run_all.sh                # Linux/macOS one-command execution script
 ├── data/                     # Data directory (parquet/csv ignored; eval metadata tracked)
@@ -164,7 +148,8 @@ job-search-project/
 │       ├── profiles.json     # 30 synthetic test profiles (hand-authored)
 │       └── labels_proposed.csv # Archived copy of proposed evaluation labels
 ├── docs/                     # Documentation and standards
-│   └── LABELING.md           # Fixed 3-point relevance labeling rubric
+│   ├── LABELING.md           # Fixed 3-point relevance labeling rubric
+│   └── REVIEW_GUIDE.md       # Self-contained review guide with profile summaries
 ├── reports/                  # Verified execution reports (JSON)
 │   ├── data_stats.json       # Ingestion and data cleaning statistics
 │   ├── index_stats.json      # Vector indexing benchmark statistics
@@ -178,14 +163,17 @@ job-search-project/
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
 │   ├── ingest.py             # Data loading, cleaning, deduplication, sampling
+│   ├── label_agreement.py    # Agreement evaluation (strictly requires labels_reviewed.csv)
 │   ├── models.py             # Profile and SearchResult domain schemas
 │   ├── personalise.py        # Query synthesis, 3-tier filtering fallback, skill boost
 │   ├── pool_and_label.py     # Candidate pooling (union top 20 across 4 strategies) & labeling
+│   ├── prepare_blinded_review.py # Prepares blinded review file and decoupled key
 │   ├── retrieval.py          # Unified retrieval: BM25, Dense, Hybrid RRF, Cross-Encoder
 │   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
     ├── test_index.py         # Embedding, hashing, and ChromaDB unit tests
     ├── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
+    ├── test_label_agreement.py # Agreement, Cohen's kappa, and review guardrail tests
     ├── test_personalise.py   # Skill extraction, boost reordering, 3-tier fallback tests
     ├── test_retrieval.py     # RRF hand-computed verification, BM25, Hybrid, Cross-Encoder tests
     └── test_sync.py          # Incremental sync unit tests (mock embedder)

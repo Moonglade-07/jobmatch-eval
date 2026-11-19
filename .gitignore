@@ -33,6 +33,8 @@ chroma*/
 data/*
 !data/eval/
 !data/eval/**
+data/eval/review_key.csv
+review_key.csv
 *.parquet
 *.arrow
 *.bin

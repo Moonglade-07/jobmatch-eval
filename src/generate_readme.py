@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 DATA_STATS_PATH = Path("reports/data_stats.json")
@@ -47,6 +47,8 @@ def build_readme_markdown(
         data_stats: Parsed dictionary from reports/data_stats.json.
         index_stats: Parsed dictionary from reports/index_stats.json.
         sync_stats: Optional parsed dictionary from reports/sync_benchmark.json.
+        labeling_stats: Optional parsed dictionary from reports/labeling_method.json.
+        agreement_stats: Optional parsed dictionary from reports/label_agreement.json.
 
     Returns:
         Complete Markdown string for README.md.
@@ -117,6 +119,42 @@ def build_readme_markdown(
     rrf_formula = "$$RRF(d) = \\sum_{s \\in \\{bm25, dense\\}} \\frac{1}{60 + \\text{rank}_s(d)}$$"
     boost_formula = "$$\\text{final\\_score} = \\text{base\\_score} + w \\times \\frac{|\\text{matched\\_skills}|}{|\\text{candidate\\_skills}|}$$"
 
+    # Phase 2A agreement section: strictly require real human review file to exist
+    agreement_section = ""
+    reviewed_file_exists = Path("labels_reviewed.csv").exists()
+
+    if agreement_stats and reviewed_file_exists:
+        metrics = agreement_stats.get("agreement_metrics", {})
+        counts = agreement_stats.get("provenance_counts", {})
+        cm_matrix = agreement_stats.get("confusion_matrix", {}).get("matrix", [[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+        agreement_section = f"""### Inter-Annotator Agreement (`reports/label_agreement.json`)
+*(Measured across the {agreement_stats.get("reviewed_sample_size", 0)} reviewed pairs from `labels_reviewed.csv`)*
+
+| Metric | Measured Value | Interpretation |
+|---|---|---|
+| Human-Reviewed Pairs | {counts.get("human_verified_count", 0)} / {agreement_stats.get("total_candidate_pairs", 0)} ({counts.get("human_verified_percentage", 0)}%) | Evaluated on `labels_reviewed.csv` |
+| Unreviewed (Model-Proposed) | {counts.get("model_proposed_count", 0)} / {agreement_stats.get("total_candidate_pairs", 0)} ({counts.get("model_proposed_percentage", 0)}%) | Retained model proposals |
+| Disagreement Count | {metrics.get("disagreement_count", 0)} pairs | Divergent judgments |
+| Disagreement Rate | **{metrics.get("disagreement_percentage", 0)}%** | Real measured disagreement |
+| Agreement Rate | **{metrics.get("agreement_percentage", 0)}%** | Inter-rater agreement |
+| **Cohen's Kappa (Quadratic)** | **{metrics.get("cohen_kappa_quadratic_weighted", 0)}** | **{metrics.get("kappa_interpretation", "N/A")}** |
+| **Cohen's Kappa (Linear)** | **{metrics.get("cohen_kappa_linear_weighted", 0)}** | Linear weighted |
+| **Ground Truth Qrels** | `data/eval/qrels.json` | Final combined labels |
+
+#### Confusion Matrix (Rows: Model Proposed, Columns: Human Reviewer)
+| | Human 0 | Human 1 | Human 2 | Total Proposed |
+|---|---|---|---|---|
+| **Proposed 0** | {cm_matrix[0][0]} | {cm_matrix[0][1]} | {cm_matrix[0][2]} | {sum(cm_matrix[0])} |
+| **Proposed 1** | {cm_matrix[1][0]} | {cm_matrix[1][1]} | {cm_matrix[1][2]} | {sum(cm_matrix[1])} |
+| **Proposed 2** | {cm_matrix[2][0]} | {cm_matrix[2][1]} | {cm_matrix[2][2]} | {sum(cm_matrix[2])} |
+"""
+    else:
+        agreement_section = """### Human Review Status
+- **Blinded Review File**: [`labels_to_review.csv`](labels_to_review.csv) (277 pooled candidates: 260 random sample + all proposed label-2 candidates, union de-duplicated and shuffled per profile).
+- **Review Guide**: [`docs/REVIEW_GUIDE.md`](docs/REVIEW_GUIDE.md) (single-page rubric and all 30 candidate profile summaries).
+- **Status**: **Awaiting Human Evaluation**. Inter-annotator agreement metrics (disagreement rate, Cohen's weighted kappa, and confusion matrix) will be computed only after `labels_reviewed.csv` is completed and returned.
+"""
+
     content = f"""# Job-Matching Search with Evaluation
 
 An end-to-end, reproducible ML portfolio project building and comparing retrieval strategies (dense semantic search, lexical BM25, hybrid retrieval, and reciprocal rank fusion) for matching candidate profiles against job postings, accompanied by grounded LLM explanations and rigorous evaluation metrics.
@@ -183,7 +221,7 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 - **Diversity Coverage**: 30 profiles spanning Software Engineering, Data/ML, DevOps/SRE, Product Management, QA, Security, Database Admin, Embedded Systems, and BI.
 - **Strict Tier 1 Gate**: Every profile is programmatically verified to have **$\ge 50$ postings** matching its location and seniority under strict Tier 1 filtering before inclusion.
 - **Seniority Constraints**: Standard Mid-Senior (18) and Entry level (10) focus, with exactly 2 non-standard seniority edge cases (1 Director, 1 Internship).
-- **Hard Cases (4 profiles)**: Includes 2 career changers (Math Teacher $\to$ Data Analyst; Mechanical Engineer $\to$ Junior Developer) and 2 vague technical background profiles.
+- **Hard Cases (4 profiles)**: Includes 2 career changers (Math Teacher $\\to$ Data Analyst; Mechanical Engineer $\\to$ Junior Developer) and 2 vague technical background profiles.
 
 ### Candidate Pooling & Relevance Labels (`labels_proposed.csv`)
 - **Unbiased Pooling**: Top 20 candidates retrieved across all four retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) and pooled via union per profile (**1,037 total pairs**).
@@ -194,28 +232,7 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
   - **Label 1 (Partially Relevant)**: 255 pairs (24.59%)
   - **Label 2 (Strongly Relevant)**: 25 pairs (2.41%)
 
-### Inter-Annotator Agreement (`reports/label_agreement.json`)
-*(Measured across the 260 audit pairs)*
-
-| Metric | Measured Value | Interpretation |
-|---|---|---|
-| Human-Reviewed Pairs | 260 / 1037 (25.07%) | Meets $\ge 20\%$ audit threshold |
-| Unreviewed (Model-Proposed) | 777 / 1037 (74.93%) | Retained proposed ratings |
-| Disagreement Count | 20 pairs | Minor boundary refinements |
-| Disagreement Rate | **7.69%** | High inter-annotator alignment |
-| Agreement Rate | **92.31%** | Strong consistency |
-| **Cohen's Kappa (Quadratic Weighted)** | **0.8512** | **Almost Perfect Agreement** (>0.80) |
-| **Cohen's Kappa (Linear Weighted)** | **0.8238** | Almost Perfect Agreement (>0.80) |
-| **Ground Truth Qrels** | `data/eval/qrels.json` | 1,037 judgments (260 human-verified, 777 proposed) |
-
-#### Confusion Matrix (Rows: Model Proposed, Columns: Human Reviewer)
-| | Human 0 | Human 1 | Human 2 | Total Proposed |
-|---|---|---|---|---|
-| **Proposed 0** | 184 | 2 | 0 | 186 |
-| **Proposed 1** | 16 | 50 | 0 | 66 |
-| **Proposed 2** | 0 | 2 | 6 | 8 |
-| **Total Human** | 200 | 54 | 6 | 260 |
-
+{agreement_section}
 ---
 
 ## Project Structure
@@ -231,6 +248,7 @@ job-search-project/
 ├── README.md                 # System overview and measured results table
 ├── requirements.txt          # Pinned dependency manifest
 ├── labels_proposed.csv       # 1,037 pooled candidate pairs with proposed labels and 25% audit sample
+├── labels_to_review.csv      # Blinded 277 candidate pairs for human evaluation
 ├── run_all.bat               # Windows one-command execution script
 ├── run_all.sh                # Linux/macOS one-command execution script
 ├── data/                     # Data directory (parquet/csv ignored; eval metadata tracked)
@@ -240,7 +258,8 @@ job-search-project/
 │       ├── profiles.json     # 30 synthetic test profiles (hand-authored)
 │       └── labels_proposed.csv # Archived copy of proposed evaluation labels
 ├── docs/                     # Documentation and standards
-│   └── LABELING.md           # Fixed 3-point relevance labeling rubric
+│   ├── LABELING.md           # Fixed 3-point relevance labeling rubric
+│   └── REVIEW_GUIDE.md       # Self-contained review guide with profile summaries
 ├── reports/                  # Verified execution reports (JSON)
 │   ├── data_stats.json       # Ingestion and data cleaning statistics
 │   ├── index_stats.json      # Vector indexing benchmark statistics
@@ -254,14 +273,17 @@ job-search-project/
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
 │   ├── ingest.py             # Data loading, cleaning, deduplication, sampling
+│   ├── label_agreement.py    # Agreement evaluation (strictly requires labels_reviewed.csv)
 │   ├── models.py             # Profile and SearchResult domain schemas
 │   ├── personalise.py        # Query synthesis, 3-tier filtering fallback, skill boost
 │   ├── pool_and_label.py     # Candidate pooling (union top 20 across 4 strategies) & labeling
+│   ├── prepare_blinded_review.py # Prepares blinded review file and decoupled key
 │   ├── retrieval.py          # Unified retrieval: BM25, Dense, Hybrid RRF, Cross-Encoder
 │   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
     ├── test_index.py         # Embedding, hashing, and ChromaDB unit tests
     ├── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
+    ├── test_label_agreement.py # Agreement, Cohen's kappa, and review guardrail tests
     ├── test_personalise.py   # Skill extraction, boost reordering, 3-tier fallback tests
     ├── test_retrieval.py     # RRF hand-computed verification, BM25, Hybrid, Cross-Encoder tests
     └── test_sync.py          # Incremental sync unit tests (mock embedder)
@@ -333,4 +355,3 @@ def update_readme() -> None:
 
 if __name__ == "__main__":
     update_readme()
-
