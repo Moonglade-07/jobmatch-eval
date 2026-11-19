@@ -1,0 +1,52 @@
+{
+  "dataset_baseline_size": 3000,
+  "mutation_parameters": {
+    "modify_percentage": 5.0,
+    "add_percentage": 2.0,
+    "delete_percentage": 2.0,
+    "random_seed": 42
+  },
+  "change_counts": {
+    "original_count": 3000,
+    "modified_count": 150,
+    "added_count": 60,
+    "deleted_count": 60,
+    "unchanged_count": 2790,
+    "mutated_total_count": 3000
+  },
+  "sync_operation_counts": {
+    "added": 60,
+    "updated": 150,
+    "skipped": 2790,
+    "deleted": 60
+  },
+  "benchmark_runs": 3,
+  "full_reindex": {
+    "run_times_seconds": [
+      152.29,
+      163.42,
+      184.713
+    ],
+    "mean_seconds": 166.808,
+    "std_seconds": 16.475,
+    "throughput_docs_per_sec": 17.98
+  },
+  "incremental_sync": {
+    "run_times_seconds": [
+      13.207,
+      19.923,
+      12.137
+    ],
+    "mean_seconds": 15.089,
+    "std_seconds": 4.22,
+    "throughput_effective_docs_per_sec": 198.82
+  },
+  "speedup_factor": 11.05,
+  "state_equivalence_verification": {
+    "passed": true,
+    "synced_document_count": 3000,
+    "full_reindex_document_count": 3000,
+    "id_sets_identical": true,
+    "hash_mismatches_count": 0
+  }
+}
