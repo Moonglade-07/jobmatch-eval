@@ -112,7 +112,7 @@ This document records all engineering decisions, model justifications, trade-off
 
 ## Decision 8: Candidate Pooling, Programmatic Tier 1 Guardrail, and Graded Labeling (Phase 2A)
 
-- **Context**: Evaluating retrieval systems requires an unbiased ground-truth dataset. If test pairs are selected from only one retrieval strategy (e.g. dense vector search), evaluation metrics systematically favor that retriever (pooling bias). Furthermore, test candidate profiles must be sufficiently covered in the underlying index to prevent evaluation on degenerate empty pools.
+- **Context**: Evaluating retrieval systems requires an unbiased evaluation dataset. If test pairs are selected from only one retrieval strategy (e.g. dense vector search), evaluation metrics systematically favor that retriever (pooling bias). Furthermore, test candidate profiles must be sufficiently covered in the underlying index to prevent evaluation on degenerate empty pools.
 - **Decision**:
   1. *Programmatic Tier 1 Guardrail*: Before finalizing any candidate profile, a programmatic check enforces that at least 50 postings in the 3,000 index pass the strict Tier 1 filter (`preferred_location` and `seniority`). All 30 authored profiles passed this check (ranging from 92 to 329 matching postings).
   2. *Synthetic Profile Authorship*: All 30 candidate profiles in `data/eval/profiles.json` are 100% hand-authored synthetic inputs (never scraped or copied from the real job postings), representing diverse tech disciplines, standard entry/mid-senior tiers, 2 non-standard seniority edges (1 Director, 1 Internship), and 4 hard cases (2 career changers, 2 vague profiles).

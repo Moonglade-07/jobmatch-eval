@@ -67,6 +67,7 @@ def build_readme_markdown(
     index_table = ""
     if index_stats:
         index_table = f"""### Measured Indexing Performance
+*Measured indexing performance from `reports/index_stats.json`*
 
 | Metric | Measured Value |
 |---|---|
@@ -119,52 +120,20 @@ def build_readme_markdown(
     rrf_formula = "$$RRF(d) = \\sum_{s \\in \\{bm25, dense\\}} \\frac{1}{60 + \\text{rank}_s(d)}$$"
     boost_formula = "$$\\text{final\\_score} = \\text{base\\_score} + w \\times \\frac{|\\text{matched\\_skills}|}{|\\text{candidate\\_skills}|}$$"
 
-    # Phase 2A agreement section: strictly require real human review file to exist
-    agreement_section = ""
-    reviewed_file_exists = Path("labels_reviewed.csv").exists()
+    # Phase 2A section: Explicitly document unverified model-proposed state
+    agreement_section = """### Relevance Evaluation Status (`data/eval/qrels.json`)
+*Evaluated against model-proposed, unverified relevance labels*
 
-    if agreement_stats and reviewed_file_exists:
-        metrics = agreement_stats.get("agreement_metrics", {})
-        counts = agreement_stats.get("provenance_counts", {})
-        cm_matrix = agreement_stats.get("confusion_matrix", {}).get("matrix", [[0, 0, 0], [0, 0, 0], [0, 0, 0]])
-        l2_audit = agreement_stats.get("label2_rows_audit", {})
-        l2_section = ""
-        if l2_audit:
-            l2_dist = l2_audit.get("human_ratings_distribution", {})
-            l2_section = f"""
-#### Proposed Label-2 Candidates Audit ({l2_audit.get("total_label2_rows_evaluated", 0)} Rows)
-- **Confirmed Strongly Relevant (2)**: {l2_dist.get("rated_2_strongly_relevant", 0)} ({l2_audit.get("agreement_percentage", 0)}%)
-- **Downgraded to Partially Relevant (1)**: {l2_dist.get("rated_1_partially_relevant", 0)}
-- **Downgraded to Irrelevant (0)**: {l2_dist.get("rated_0_irrelevant", 0)}
-"""
-
-        agreement_section = f"""### Inter-Annotator Agreement (`reports/label_agreement.json`)
-*(Measured across the random {agreement_stats.get("random_must_review_sample_size", agreement_stats.get("reviewed_sample_size", 0))} `must_review` pairs from `labels_reviewed.csv`)*
-
-| Metric | Measured Value | Interpretation |
+| Property | Setting / Value | Documentation |
 |---|---|---|
-| Human-Reviewed Pairs (Total) | {counts.get("human_verified_count", 0)} / {agreement_stats.get("total_candidate_pairs", 0)} ({counts.get("human_verified_percentage", 0)}%) | Evaluated on `labels_reviewed.csv` |
-| Random Audit Sample Size | {agreement_stats.get("random_must_review_sample_size", 260)} pairs | Random sample for kappa |
-| Unreviewed (Model-Proposed) | {counts.get("model_proposed_count", 0)} / {agreement_stats.get("total_candidate_pairs", 0)} ({counts.get("model_proposed_percentage", 0)}%) | Retained model proposals |
-| Disagreement Count | {metrics.get("disagreement_count", 0)} pairs | Divergent judgments |
-| Disagreement Rate | **{metrics.get("disagreement_percentage", 0)}%** | Real measured disagreement |
-| Agreement Rate | **{metrics.get("agreement_percentage", 0)}%** | Inter-rater agreement |
-| **Cohen's Kappa (Quadratic)** | **{metrics.get("cohen_kappa_quadratic_weighted", 0)}** | **{metrics.get("kappa_interpretation", "N/A")}** |
-| **Cohen's Kappa (Linear)** | **{metrics.get("cohen_kappa_linear_weighted", 0)}** | Linear weighted |
-| **Ground Truth Qrels** | `data/eval/qrels.json` | Final combined labels |
+| Relevance Labels Source | **100% Model-Proposed** (`label_source: model_proposed`) | [`docs/LABELING.md`](docs/LABELING.md) |
+| Total Evaluated Candidate Pairs | 1,037 pairs (across 30 profiles) | `data/eval/qrels.json` |
+| Human Review Count | **0 pairs** (`human_reviewed: false`) | `reports/label_agreement.json` |
+| Review Pipeline Status | Blinded review package prepared & intact | [`labels_to_review.csv`](labels_to_review.csv) |
+| Review Guide | Profile and rubric documentation | [`docs/REVIEW_GUIDE.md`](docs/REVIEW_GUIDE.md) |
 
-#### Confusion Matrix (Rows: Model Proposed, Columns: Human Reviewer)
-| | Human 0 | Human 1 | Human 2 | Total Proposed |
-|---|---|---|---|---|
-| **Proposed 0** | {cm_matrix[0][0]} | {cm_matrix[0][1]} | {cm_matrix[0][2]} | {sum(cm_matrix[0])} |
-| **Proposed 1** | {cm_matrix[1][0]} | {cm_matrix[1][1]} | {cm_matrix[1][2]} | {sum(cm_matrix[1])} |
-| **Proposed 2** | {cm_matrix[2][0]} | {cm_matrix[2][1]} | {cm_matrix[2][2]} | {sum(cm_matrix[2])} |
-{l2_section}"""
-    else:
-        agreement_section = """### Human Review Status
-- **Blinded Review File**: [`labels_to_review.csv`](labels_to_review.csv) (277 pooled candidates: 260 random sample + all proposed label-2 candidates, union de-duplicated and shuffled per profile).
-- **Review Guide**: [`docs/REVIEW_GUIDE.md`](docs/REVIEW_GUIDE.md) (single-page rubric and all 30 candidate profile summaries).
-- **Status**: **Awaiting Human Evaluation**. Inter-annotator agreement metrics (disagreement rate, Cohen's weighted kappa, and confusion matrix) will be computed only after `labels_reviewed.csv` is completed and returned.
+> [!NOTE]
+> All evaluation labels in `data/eval/qrels.json` are currently heuristic model proposals (`label_source: model_proposed`). No human verification has been conducted. Inter-annotator agreement metrics (disagreement rate, Cohen's kappa) are withheld until independent review is submitted.
 """
 
     content = f"""# Job-Matching Search with Evaluation
@@ -236,15 +205,31 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 - **Hard Cases (4 profiles)**: Includes 2 career changers (Math Teacher $\\to$ Data Analyst; Mechanical Engineer $\\to$ Junior Developer) and 2 vague technical background profiles.
 
 ### Candidate Pooling & Relevance Labels (`labels_proposed.csv`)
+*Evaluated against model-proposed, unverified relevance labels*
+
 - **Unbiased Pooling**: Top 20 candidates retrieved across all four retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) and pooled via union per profile (**1,037 total pairs**).
 - **Graded Rubric**: 3-point relevance scale (`0 = Irrelevant`, `1 = Partially Relevant`, `2 = Strongly Relevant`) documented in [`docs/LABELING.md`](docs/LABELING.md).
-- **Quality Audit Sample**: A stratified random **25% subset (260 pairs, seed=42)** is marked as `must_review = True` for human verification.
-- **Label Distribution**:
+- **Label Distribution (100% Model-Proposed)**:
   - **Label 0 (Irrelevant)**: 757 pairs (73.00%)
   - **Label 1 (Partially Relevant)**: 255 pairs (24.59%)
   - **Label 2 (Strongly Relevant)**: 25 pairs (2.41%)
 
+| Relevance Grade | Definition | Count | Percentage |
+|---|---|---|---|
+| **0** | Irrelevant | 757 | 73.00% |
+| **1** | Partially Relevant | 255 | 24.59% |
+| **2** | Strongly Relevant | 25 | 2.41% |
+| **Total** | Pooled Candidate Pool | 1,037 | 100.00% |
+
 {agreement_section}
+---
+
+## Limitations
+
+1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are heuristic model proposals (`label_source: model_proposed`), not verified by human annotators (`human_reviewed: false`). Retrieval benchmarks reflect alignment with rule-based heuristics rather than human judgment.
+2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. While a retrieval-independent audit shows that 51 out of 280 proposed relevant candidates (18.21% of label-1/2 rows) possess zero lexical overlap with candidate skills (matching on role/title keywords or adjacent domains), 81.79% (and 100% of label-2 candidates) share explicit skill keywords.
+3. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+
 ---
 
 ## Project Structure
@@ -259,8 +244,9 @@ job-search-project/
 ├── pyproject.toml            # Pytest configuration and project metadata
 ├── README.md                 # System overview and measured results table
 ├── requirements.txt          # Pinned dependency manifest
-├── labels_proposed.csv       # 1,037 pooled candidate pairs with proposed labels and 25% audit sample
-├── labels_to_review.csv      # Blinded 277 candidate pairs for human evaluation
+├── RESULTS.md                # Detailed experimental results and retrieval comparison
+├── labels_proposed.csv       # 1,037 pooled candidate pairs with model-proposed labels
+├── labels_to_review.csv      # Blinded 277 candidate pairs for future human evaluation
 ├── run_all.bat               # Windows one-command execution script
 ├── run_all.sh                # Linux/macOS one-command execution script
 ├── data/                     # Data directory (parquet/csv ignored; eval metadata tracked)
@@ -268,6 +254,7 @@ job-search-project/
 │   ├── jobs_clean.parquet    # Cleaned, deduplicated, sampled postings
 │   └── eval/                 # Evaluation suite assets
 │       ├── profiles.json     # 30 synthetic test profiles (hand-authored)
+│       ├── qrels.json        # 1,037 model-proposed evaluation relevance labels
 │       └── labels_proposed.csv # Archived copy of proposed evaluation labels
 ├── docs/                     # Documentation and standards
 │   ├── LABELING.md           # Fixed 3-point relevance labeling rubric
@@ -276,10 +263,12 @@ job-search-project/
 │   ├── data_stats.json       # Ingestion and data cleaning statistics
 │   ├── index_stats.json      # Vector indexing benchmark statistics
 │   ├── labeling_method.json  # Phase 2A labeling method, rubric, model, and prompt
+│   ├── label_agreement.json  # Documents unverified status (human_reviewed: false)
 │   └── sync_benchmark.json   # Hash-based incremental sync benchmark results
 ├── src/                      # Production implementation
 │   ├── __init__.py
 │   ├── bench_sync.py         # Sync benchmark and state equivalence verification
+│   ├── build_unverified_qrels.py # Builds qrels from proposed labels (unverified mode)
 │   ├── demo_comparison.py    # Side-by-side comparison across all 4 retrieval strategies
 │   ├── generate_eval_profiles.py # Phase 2A profile generation & Tier 1 verification
 │   ├── generate_readme.py    # Auto-generation of results table from reports
