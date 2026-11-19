@@ -82,30 +82,64 @@ def apply_skill_boost(
     results: List[SearchResult],
     skills: List[str],
     weight: float = 0.2,
+    normalize_base_scores: bool = True,
 ) -> List[SearchResult]:
     """Apply an explainable additive score boost based on matched candidate skills.
 
-    Formula:
-        final_score = base_score + (weight * matched_skills_fraction)
-        matched_skills_fraction = len(matched_skills) / len(candidate_skills)
+    Normalizes base scores to [0, 1] per candidate pool using min-max scaling so that
+    boost weight `w` operates on an identical scale across all retrieval strategies
+    (BM25, Dense, Hybrid RRF, and Cross-Encoder).
 
-    Each SearchResult is annotated with matched_skills, base_score, and skill_boost.
-    Results are re-sorted descending by the new final_score.
+    Formula:
+        norm_base_score = (raw_score - min_score) / (max_score - min_score)  [if max > min]
+        skill_boost = weight * (matched_skills_count / total_skills_count)
+        final_score = norm_base_score + skill_boost
+
+    Each SearchResult is annotated with:
+        raw_score: original retriever score before normalization.
+        base_score: min-max normalized base score in [0, 1].
+        skill_boost: additive boost earned.
+        matched_skills: list of matching skills found in posting text.
+        score: final combined ranking score.
 
     Args:
         results: List of SearchResult objects from preliminary retrieval.
         skills: Candidate's skill list.
         weight: Importance weight parameter `w` for skill alignment (default: 0.2).
+        normalize_base_scores: Whether to min-max scale base scores to [0, 1].
 
     Returns:
-        Re-ranked and annotated SearchResult list.
+        Re-ranked and annotated SearchResult list sorted descending by final score.
     """
+    if not results:
+        return []
+
+    # Preserve raw scores
+    for r in results:
+        if not hasattr(r, "raw_score") or r.raw_score == 0.0:
+            r.raw_score = r.score
+
+    # Min-max normalize base scores over the candidate list
+    if normalize_base_scores and len(results) > 0:
+        raw_scores = [float(r.raw_score) for r in results]
+        min_s = min(raw_scores)
+        max_s = max(raw_scores)
+        score_range = max_s - min_s
+        for r in results:
+            if score_range > 1e-6:
+                r.base_score = round(float((r.raw_score - min_s) / score_range), 4)
+            else:
+                r.base_score = 1.0
+    else:
+        for r in results:
+            r.base_score = round(float(r.score), 4)
+
     if not skills:
         for r in results:
-            r.base_score = r.score
             r.skill_boost = 0.0
+            r.score = r.base_score
             r.matched_skills = []
-        return sorted(results, key=lambda x: x.score, reverse=True)
+        return sorted(results, key=lambda x: (x.filter_tier, -x.score))
 
     total_skills = len(skills)
     boosted_results: List[SearchResult] = []
@@ -116,24 +150,62 @@ def apply_skill_boost(
         fraction = len(matched) / total_skills if total_skills > 0 else 0.0
         boost = round(weight * fraction, 4)
 
-        r.base_score = r.score
         r.skill_boost = boost
         r.score = round(r.base_score + boost, 4)
         r.matched_skills = matched
         boosted_results.append(r)
 
-    boosted_results.sort(key=lambda x: x.score, reverse=True)
+    boosted_results.sort(key=lambda x: (x.filter_tier, -x.score))
     return boosted_results
 
 
-def matches_location(job_location: str, preferred_location: str) -> bool:
+def is_remote_posting(title: str = "", description: str = "", location: str = "") -> bool:
+    """Detect whether a posting offers remote work based on location, title, or description.
+
+    Args:
+        title: Job posting title.
+        description: Job posting description text.
+        location: Job posting location string.
+
+    Returns:
+        True if the posting offers remote work, False otherwise.
+    """
+    if "remote" in (location or "").lower():
+        return True
+
+    t = (title or "").lower()
+    if re.search(r"\b(remote|virtual|telecommute|work from home|wfh)\b", t):
+        return True
+
+    d = (description or "").lower()
+    if re.search(
+        r"\b(100%\s*remote|fully\s*remote|work\s*from\s*home|remote\s*work|remote\s*position|remote\s*role|remote\s*opportunity|remote\s*job|work\s*remotely|remote)\b",
+        d,
+    ):
+        if re.search(r"\b(no|not|non|neither)\s+remote\b", d):
+            return False
+        return True
+
+    return False
+
+
+def matches_location(
+    job_location: str,
+    preferred_location: str,
+    title: str = "",
+    description: str = "",
+) -> bool:
     """Check if job location satisfies preferred location constraint.
 
-    Treats 'Remote' jobs as compatible with any location preference.
+    If candidate prefers 'Remote', the posting must offer remote work.
+    If the posting itself is remote, it satisfies any candidate location preference.
+    Otherwise, standard geographic matching (exact or substring) is performed.
 
     Args:
         job_location: Normalized job location.
         preferred_location: Candidate preferred location.
+        title: Optional job title for remote keyword detection.
+        description: Optional job description for remote keyword detection.
 
     Returns:
         Boolean indicating location compatibility.
@@ -142,11 +214,17 @@ def matches_location(job_location: str, preferred_location: str) -> bool:
         return True
     pref = preferred_location.strip().lower()
     job_loc = (job_location or "").strip().lower()
+    remote_job = is_remote_posting(title=title, description=description, location=job_location)
 
-    if "remote" in pref or "remote" in job_loc:
+    # If candidate requests Remote, the job MUST offer remote work
+    if "remote" in pref:
+        return remote_job
+
+    # If job offers remote work, candidate anywhere is compatible
+    if remote_job:
         return True
 
-    # Exact or substring match (e.g. "Austin, TX" in "Austin, TX" or "TX")
+    # Otherwise, check geographic match (e.g. "Austin, TX" in "Austin, TX" or state match)
     return pref in job_loc or job_loc in pref
 
 
@@ -183,13 +261,14 @@ def filter_with_fallback(
 
     Fallback Hierarchy:
       1. Tier 1 (Strict): Both `preferred_location` and `seniority` must match.
-         If len(matches) >= k, returns top k strictly matching results.
+         Annotates matched results with `filter_tier = 1`.
       2. Tier 2 (Relax Seniority): If Tier 1 yields < k results, relax the
          seniority constraint while strictly preserving the location constraint.
-         If len(matches) >= k, returns top k location-compatible results.
+         Annotates newly added results with `filter_tier = 2`.
       3. Tier 3 (Global Backfill): If Tier 2 still yields < k results, backfill
          remaining slots with top-scoring unfiltered results to guarantee
-         that exactly min(k, len(results)) items are returned.
+         that min(k, len(results)) items are returned.
+         Annotates newly added results with `filter_tier = 3`.
 
     Args:
         results: Candidate SearchResult pool in rank order.
@@ -207,38 +286,59 @@ def filter_with_fallback(
     has_lvl = bool(seniority and seniority.strip())
 
     if not has_loc and not has_lvl:
+        for r in results:
+            r.filter_tier = 1
         return results[:k], "tier_0_no_filters"
 
     # Tier 1: Strict match on both location and seniority
-    tier_1: List[SearchResult] = [
-        r
-        for r in results
-        if matches_location(r.location, preferred_location)
-        and matches_seniority(r.experience_level, seniority)
-    ]
+    tier_1: List[SearchResult] = []
+    tier_1_ids = set()
+    for r in results:
+        loc_ok = matches_location(
+            r.location, preferred_location, title=r.title, description=r.description
+        )
+        lvl_ok = matches_seniority(r.experience_level, seniority)
+        if loc_ok and lvl_ok:
+            r.filter_tier = 1
+            tier_1.append(r)
+            tier_1_ids.add(r.job_id)
 
     if len(tier_1) >= k:
         return tier_1[:k], "tier_1_strict"
 
-    # Tier 2: Relax seniority, preserve location
-    if has_loc:
-        tier_2: List[SearchResult] = [
-            r for r in results if matches_location(r.location, preferred_location)
-        ]
-        if len(tier_2) >= k:
-            return tier_2[:k], "tier_2_relaxed_seniority"
-    else:
-        # If no location was given, relax location, preserve seniority
-        tier_2 = [
-            r for r in results if matches_seniority(r.experience_level, seniority)
-        ]
-        if len(tier_2) >= k:
-            return tier_2[:k], "tier_2_relaxed_location"
+    # Tier 2: Relax seniority, preserve location (or relax location if no location preference)
+    tier_2: List[SearchResult] = []
+    tier_2_ids = set()
+    for r in results:
+        if r.job_id in tier_1_ids:
+            continue
+        if has_loc:
+            loc_ok = matches_location(
+                r.location, preferred_location, title=r.title, description=r.description
+            )
+            if loc_ok:
+                r.filter_tier = 2
+                tier_2.append(r)
+                tier_2_ids.add(r.job_id)
+        else:
+            lvl_ok = matches_seniority(r.experience_level, seniority)
+            if lvl_ok:
+                r.filter_tier = 2
+                tier_2.append(r)
+                tier_2_ids.add(r.job_id)
+
+    combined_1_2 = tier_1 + tier_2
+    if len(combined_1_2) >= k:
+        label = "tier_2_relaxed_seniority" if has_loc else "tier_2_relaxed_location"
+        return combined_1_2[:k], label
 
     # Tier 3: Global backfill from remaining unfiltered results
-    selected_ids = {r.job_id for r in tier_2}
-    backfill: List[SearchResult] = [
-        r for r in results if r.job_id not in selected_ids
-    ]
-    combined = tier_2 + backfill
-    return combined[:k], "tier_3_global_backfill"
+    existing_ids = tier_1_ids | tier_2_ids
+    tier_3: List[SearchResult] = []
+    for r in results:
+        if r.job_id not in existing_ids:
+            r.filter_tier = 3
+            tier_3.append(r)
+
+    combined_all = combined_1_2 + tier_3
+    return combined_all[:k], "tier_3_global_backfill"
