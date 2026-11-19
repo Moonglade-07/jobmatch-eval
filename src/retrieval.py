@@ -310,8 +310,11 @@ class DenseRetriever(BaseRetriever):
                 show_progress_bar=False,
             ).tolist()
 
-        # Query a generous candidate pool to allow downstream filtering
-        fetch_limit = min(max(k * 20, 300), self.collection.count())
+        # Query a candidate pool sized appropriately for filtering or pure retrieval
+        if apply_filters:
+            fetch_limit = min(max(k * 4, 150), self.collection.count())
+        else:
+            fetch_limit = min(max(k, 50), self.collection.count())
         query_output = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=fetch_limit,
