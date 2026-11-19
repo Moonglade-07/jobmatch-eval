@@ -8,6 +8,7 @@ help:
 	@echo "  make setup    - Install dependencies from requirements.txt"
 	@echo "  make ingest   - Run data cleaning, deduplication, and sampling"
 	@echo "  make index    - Build ChromaDB vector index with SentenceTransformer"
+	@echo "  make bench    - Run hash-based sync benchmark and equivalence check"
 	@echo "  make test     - Execute full unit test suite"
 	@echo "  make all      - Run ingest, index, and tests sequentially"
 	@echo "  make clean    - Remove build and cache artifacts"
@@ -20,6 +21,9 @@ ingest:
 
 index:
 	$(PYTHON) src/index.py
+
+bench:
+	$(PYTHON) src/bench_sync.py
 
 test:
 	$(PYTEST) -v tests/
