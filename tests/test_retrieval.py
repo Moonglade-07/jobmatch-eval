@@ -210,3 +210,80 @@ def test_cross_encoder_rerank() -> None:
     # job_high_relevance must be moved to the #1 position by the cross-encoder
     assert reranked[0].job_id == "job_high_relevance"
     assert reranked[0].score > reranked[1].score
+
+
+def test_skill_boost_reorders_bm25() -> None:
+    """Test that min-max normalized skill boost reorders BM25 rankings on raw unbounded scores."""
+    from src.personalise import apply_skill_boost
+
+    candidate_skills = ["PyTorch", "Docker", "Kubernetes", "FastAPI"]
+
+    # Candidate 1: High raw BM25 score (114.65), 0 matched skills
+    r1 = SearchResult(
+        job_id="bm25_high_raw_zero_skills",
+        score=114.65,
+        title="Senior Python Developer",
+        description="Ruby Rails AWS cloud engineering.",
+    )
+    # Candidate 2: Slightly lower raw BM25 score (110.00), matches all 4 skills
+    r2 = SearchResult(
+        job_id="bm25_mod_raw_all_skills",
+        score=110.00,
+        title="Python Engineer",
+        description="Requires PyTorch, Docker, Kubernetes, and FastAPI deployment.",
+    )
+    # Candidate 3: Baseline bottom candidate establishing pool score range (50.00)
+    r3 = SearchResult(
+        job_id="bm25_low_raw_baseline",
+        score=50.00,
+        title="Junior Analyst",
+        description="Spreadsheets and reporting.",
+    )
+
+    # 1. Unnormalized boost (+0.20 on 110.0 -> 110.20) fails to change order against 114.65
+    unnorm = apply_skill_boost(
+        [r1, r2, r3], skills=candidate_skills, weight=0.2, normalize_base_scores=False
+    )
+    assert unnorm[0].job_id == "bm25_high_raw_zero_skills"
+    assert unnorm[0].score == 114.65
+
+    # 2. Normalized boost (norm: (110-50)/(114.65-50) = 0.9281 + 0.20 = 1.1281 > 1.0000) overtakes #1!
+    normed = apply_skill_boost(
+        [r1, r2, r3], skills=candidate_skills, weight=0.2, normalize_base_scores=True
+    )
+    assert normed[0].job_id == "bm25_mod_raw_all_skills"
+    assert normed[0].score > normed[1].score
+    assert normed[0].score == 1.1281
+    assert len(normed[0].matched_skills) == 4
+
+
+def test_skill_boost_reorders_dense() -> None:
+    """Test that min-max normalized skill boost reorders dense retrieval results."""
+    from src.personalise import apply_skill_boost
+
+    candidate_skills = ["PyTorch", "Transformers", "FastAPI"]
+
+    r1 = SearchResult(
+        job_id="dense_high_sim",
+        score=0.72,
+        title="ML Engineer",
+        description="General machine learning and statistics background.",
+    )
+    r2 = SearchResult(
+        job_id="dense_moderate_sim",
+        score=0.68,
+        title="AI Engineer",
+        description="Production systems using PyTorch, Transformers, and FastAPI microservices.",
+    )
+    r3 = SearchResult(
+        job_id="dense_low_sim",
+        score=0.40,
+        title="Web Developer",
+        description="HTML, CSS, JavaScript.",
+    )
+
+    boosted = apply_skill_boost([r1, r2, r3], skills=candidate_skills, weight=0.2)
+
+    assert boosted[0].job_id == "dense_moderate_sim"
+    assert boosted[0].score > boosted[1].score
+    assert len(boosted[0].matched_skills) == 3
