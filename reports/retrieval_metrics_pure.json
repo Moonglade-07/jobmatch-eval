@@ -1,7 +1,8 @@
 {
   "caption": "Evaluated against model-proposed, unverified relevance labels",
   "note": "Relevance labels are rule-based proposed labels (jobmatch-rubric-v1) generated via deterministic heuristics; unverified by humans.",
-  "setting": "Pure Retrieval (Filters OFF, Skill Boost OFF)",
+  "setting": "Pure Retrieval (Filters OFF, Skill Boost OFF) - Not comparable (labels pooled under filters, 76% unjudged)",
+  "comparability_warning": "Not comparable (labels pooled under filters, 76% unjudged). Because candidate pooling was performed under active location and seniority filters, out-of-market jobs retrieved when filters are off were never pooled or evaluated, causing unjudged rates of 76%\u201385%. These numbers do not reflect pure retrieval quality.",
   "strategies": {
     "bm25": {
       "display_name": "BM25 Only",
@@ -63,15 +64,15 @@
         0.087,
         0.2007
       ],
-      "mrr": 0.2929,
+      "mrr": 0.2921,
       "mrr_ci_95": [
-        0.1685,
-        0.4458
+        0.1674,
+        0.4442
       ],
-      "ndcg@10": 0.1774,
+      "ndcg@10": 0.1772,
       "ndcg@10_ci_95": [
-        0.1037,
-        0.264
+        0.1035,
+        0.2638
       ],
       "unjudged_rate@10": 0.8233
     },

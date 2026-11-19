@@ -71,7 +71,7 @@ hybrid_rrf,prof_09,0.0,0.0,0.0,0.0,1.0,2,False,10
 hybrid_rrf,prof_10,0.0,0.0,0.0,0.0,1.0,12,False,10
 hybrid_rrf,prof_11,0.0,0.0,0.0,0.0,1.0,2,False,10
 hybrid_rrf,prof_12,0.2,0.6667,0.2,0.3296,0.8,3,False,10
-hybrid_rrf,prof_13,0.0,0.1429,0.1667,0.0979,0.9,7,False,10
+hybrid_rrf,prof_13,0.0,0.1429,0.1429,0.0916,0.9,7,False,10
 hybrid_rrf,prof_14,0.0,0.25,0.1429,0.1301,0.8,4,False,10
 hybrid_rrf,prof_15,0.2,0.3,0.2,0.3378,0.6,10,False,10
 hybrid_rrf,prof_16,0.0,0.0,0.0,0.0,0.8,10,False,10

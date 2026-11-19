@@ -203,7 +203,7 @@ def run_paired_bootstrap(
         "mean_difference": mean_diff,
         "ci_95": [ci_lower, ci_upper],
         "significant": bool(is_significant),
-        "interpretation": "Clear difference (statistically significant)" if is_significant else "No clear difference (CI spans 0.0)",
+        "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval" if is_significant else "No clear difference (CI spans 0.0)",
     }
 
 
@@ -211,15 +211,18 @@ def benchmark_latencies(
     retrievers: Dict[str, Any],
     profiles: List[Profile],
     runs_per_query: int = 20,
+    startup_times: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """Measure query latency (p50 and p95) under CPU execution across multiple runs.
 
-    Explicitly separates retrieval latency from cross-encoder re-ranking latency.
+    Indices, tokenized corpora, and models are built once at startup outside the
+    timed region. Explicitly separates retrieval latency from cross-encoder re-ranking latency.
 
     Args:
         retrievers: Dictionary of named retriever instances.
         profiles: List of candidate profiles.
         runs_per_query: Number of timed repetitions per query.
+        startup_times: Optional dictionary of one-off index build / startup times in ms.
 
     Returns:
         Dictionary of measured p50 and p95 latencies and hardware metadata.
@@ -235,7 +238,11 @@ def benchmark_latencies(
         "runs_per_query": runs_per_query,
     }
 
-    latency_results: Dict[str, Any] = {"hardware": hw_info, "caption": MANDATORY_CAPTION}
+    latency_results: Dict[str, Any] = {
+        "hardware": hw_info,
+        "caption": MANDATORY_CAPTION,
+        "startup_times_ms": startup_times or {},
+    }
 
     # 1. Warm-up all retrievers
     sample_prof = profiles[0]
@@ -432,26 +439,39 @@ def run_circularity_audit(
                 relevance_threshold=1,
             )
         macro = compute_macro_averages(per_prof_m)
+
+        # Compute bootstrap CIs over the valid profiles
+        p5_vals = [float(v["precision@5"]) for v in per_prof_m.values()]
+        ndcg_vals = [float(v["ndcg@10"]) for v in per_prof_m.values()]
+        rec_vals = [float(v["recall@10"]) for v in per_prof_m.values() if v["recall@10"] is not None]
+        mrr_vals = [float(v["mrr"]) for v in per_prof_m.values() if v["mrr"] is not None]
+
         strat_results[name] = {
             "precision@5": macro["mean_precision@5"],
+            "precision@5_ci_95": bootstrap_ci(p5_vals, seed=42) if p5_vals else [0.0, 0.0],
             "recall@10": macro["mean_recall@10"],
+            "recall@10_ci_95": bootstrap_ci(rec_vals, seed=42) if rec_vals else [0.0, 0.0],
             "mrr": macro["mean_mrr"],
+            "mrr_ci_95": bootstrap_ci(mrr_vals, seed=42) if mrr_vals else [0.0, 0.0],
             "ndcg@10": macro["mean_ndcg@10"],
+            "ndcg@10_ci_95": bootstrap_ci(ndcg_vals, seed=42) if ndcg_vals else [0.0, 0.0],
         }
 
     return {
         "caption": MANDATORY_CAPTION,
         "note": LABEL_ORIGIN_NOTE,
         "audit_scope": "Relevant postings with ZERO literal match of candidate declared skills",
+        "sample_size": "51 pairs, 17 profiles",
+        "is_indicative_only": True,
         "sample_size_assessment": {
             "total_zero_overlap_relevant_pairs": total_zero_overlap_pairs,
             "profiles_with_zero_overlap_relevant_docs": len(profiles_with_zero_overlap),
             "total_profiles": len(profiles),
+            "excluded_zero_relevant_profiles": len(profiles) - len(profiles_with_zero_overlap),
             "is_sample_too_small": True,
-            "warning": (
-                f"Subset is very small ({total_zero_overlap_pairs} total pairs across only "
-                f"{len(profiles_with_zero_overlap)}/30 profiles). 13 profiles have 0 relevant items "
-                f"in this subset and are excluded from Recall/MRR means. High variance expected."
+            "statement": (
+                f"Sample size is {total_zero_overlap_pairs} pairs across {len(profiles_with_zero_overlap)} "
+                f"profiles. This check is indicative only due to the small sample size and high variance."
             ),
         },
         "strategy_metrics_on_zero_overlap_subset": strat_results,
@@ -469,12 +489,31 @@ def execute_full_evaluation() -> None:
 
     print(f"Loaded {len(profiles)} profiles and {len(qrels)} qrels profile entries.")
 
-    # Instantiate retrievers
+    # Instantiate retrievers outside the timed benchmarking region
     print("Initializing retrievers (BM25, Dense, Hybrid RRF, Cross-Encoder)...")
+    t0_bm25 = time.perf_counter()
     bm25 = BM25Retriever()
+    t_bm25_build = (time.perf_counter() - t0_bm25) * 1000.0
+
+    t0_dense = time.perf_counter()
     dense = DenseRetriever()
+    t_dense_build = (time.perf_counter() - t0_dense) * 1000.0
+
+    t0_hybrid = time.perf_counter()
     hybrid = HybridRRFRetriever(bm25, dense)
+    t_hybrid_build = (time.perf_counter() - t0_hybrid) * 1000.0
+
+    t0_ce = time.perf_counter()
     cross_encoder = CrossEncoderRetriever(hybrid)
+    t_ce_build = (time.perf_counter() - t0_ce) * 1000.0
+
+    startup_times = {
+        "bm25_index_build_ms": round(t_bm25_build, 2),
+        "dense_init_ms": round(t_dense_build, 2),
+        "hybrid_init_ms": round(t_hybrid_build, 2),
+        "cross_encoder_load_ms": round(t_ce_build, 2),
+    }
+    print(f"One-off startup build times: BM25={t_bm25_build:.1f}ms, Dense={t_dense_build:.1f}ms, Cross-Encoder={t_ce_build:.1f}ms")
 
     retrievers = {
         "bm25": bm25,
@@ -578,7 +617,12 @@ def execute_full_evaluation() -> None:
     pure_summary: Dict[str, Any] = {
         "caption": MANDATORY_CAPTION,
         "note": LABEL_ORIGIN_NOTE,
-        "setting": "Pure Retrieval (Filters OFF, Skill Boost OFF)",
+        "setting": "Pure Retrieval (Filters OFF, Skill Boost OFF) - Not comparable (labels pooled under filters, 76% unjudged)",
+        "comparability_warning": (
+            "Not comparable (labels pooled under filters, 76% unjudged). Because candidate pooling was performed "
+            "under active location and seniority filters, out-of-market jobs retrieved when filters are off were never "
+            "pooled or evaluated, causing unjudged rates of 76%–85%. These numbers do not reflect pure retrieval quality."
+        ),
         "strategies": {},
     }
     all_per_profile_rows_pure: List[Dict[str, Any]] = []
@@ -671,7 +715,7 @@ def execute_full_evaluation() -> None:
     # ---------------------------------------------------------
     # 4. Latency Benchmarks
     # ---------------------------------------------------------
-    latency_report = benchmark_latencies(retrievers, profiles, runs_per_query=25)
+    latency_report = benchmark_latencies(retrievers, profiles, runs_per_query=25, startup_times=startup_times)
     latency_path = REPORTS_DIR / "retrieval_latency.json"
     with open(latency_path, "w", encoding="utf-8") as f:
         json.dump(latency_report, f, indent=2)

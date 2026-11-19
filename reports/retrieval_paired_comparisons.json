@@ -22,7 +22,7 @@
             0.2735
           ],
           "significant": true,
-          "interpretation": "Clear difference (statistically significant)"
+          "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval"
         },
         "mrr": {
           "mean_difference": 0.1863,
@@ -31,7 +31,7 @@
             0.3027
           ],
           "significant": true,
-          "interpretation": "Clear difference (statistically significant)"
+          "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval"
         },
         "ndcg@10": {
           "mean_difference": 0.1916,
@@ -40,7 +40,7 @@
             0.261
           ],
           "significant": true,
-          "interpretation": "Clear difference (statistically significant)"
+          "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval"
         }
       }
     },
@@ -58,10 +58,10 @@
           "interpretation": "No clear difference (CI spans 0.0)"
         },
         "recall@10": {
-          "mean_difference": -0.0071,
+          "mean_difference": -0.002,
           "ci_95": [
-            -0.0556,
-            0.0405
+            -0.0494,
+            0.045
           ],
           "significant": false,
           "interpretation": "No clear difference (CI spans 0.0)"
@@ -76,10 +76,10 @@
           "interpretation": "No clear difference (CI spans 0.0)"
         },
         "ndcg@10": {
-          "mean_difference": -0.008,
+          "mean_difference": -0.0048,
           "ci_95": [
-            -0.0534,
-            0.0352
+            -0.0502,
+            0.0384
           ],
           "significant": false,
           "interpretation": "No clear difference (CI spans 0.0)"
@@ -97,16 +97,16 @@
             0.18
           ],
           "significant": true,
-          "interpretation": "Clear difference (statistically significant)"
+          "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval"
         },
         "recall@10": {
-          "mean_difference": 0.1452,
+          "mean_difference": 0.1503,
           "ci_95": [
-            0.0538,
-            0.2519
+            0.0618,
+            0.2597
           ],
           "significant": true,
-          "interpretation": "Clear difference (statistically significant)"
+          "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval"
         },
         "mrr": {
           "mean_difference": 0.2093,
@@ -115,16 +115,16 @@
             0.3179
           ],
           "significant": true,
-          "interpretation": "Clear difference (statistically significant)"
+          "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval"
         },
         "ndcg@10": {
-          "mean_difference": 0.1836,
+          "mean_difference": 0.1868,
           "ci_95": [
-            0.1223,
-            0.2389
+            0.1277,
+            0.2414
           ],
           "significant": true,
-          "interpretation": "Clear difference (statistically significant)"
+          "interpretation": "Clear difference against rule-based labels sharing lexical signals; not evidence of better retrieval"
         }
       }
     },
@@ -160,10 +160,10 @@
           "interpretation": "No clear difference (CI spans 0.0)"
         },
         "ndcg@10": {
-          "mean_difference": -0.014,
+          "mean_difference": -0.0146,
           "ci_95": [
             -0.0579,
-            0.0311
+            0.0308
           ],
           "significant": false,
           "interpretation": "No clear difference (CI spans 0.0)"
@@ -184,10 +184,10 @@
           "interpretation": "No clear difference (CI spans 0.0)"
         },
         "recall@10": {
-          "mean_difference": -0.0083,
+          "mean_difference": -0.0032,
           "ci_95": [
-            -0.0571,
-            0.0458
+            -0.0524,
+            0.0517
           ],
           "significant": false,
           "interpretation": "No clear difference (CI spans 0.0)"
@@ -202,10 +202,10 @@
           "interpretation": "No clear difference (CI spans 0.0)"
         },
         "ndcg@10": {
-          "mean_difference": -0.022,
+          "mean_difference": -0.0193,
           "ci_95": [
-            -0.0807,
-            0.0383
+            -0.0781,
+            0.041
           ],
           "significant": false,
           "interpretation": "No clear difference (CI spans 0.0)"

@@ -9,46 +9,52 @@
     "runs_per_query": 25
   },
   "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "startup_times_ms": {
+    "bm25_index_build_ms": 5992.11,
+    "dense_init_ms": 877.84,
+    "hybrid_init_ms": 0.0,
+    "cross_encoder_load_ms": 242.47
+  },
   "bm25": {
-    "p50_ms": 5450.48,
-    "p95_ms": 5872.0,
-    "mean_ms": 5441.48,
-    "std_ms": 303.18,
+    "p50_ms": 136.24,
+    "p95_ms": 168.32,
+    "mean_ms": 146.96,
+    "std_ms": 52.89,
     "total_measurements": 25
   },
   "dense": {
-    "p50_ms": 449.15,
-    "p95_ms": 544.77,
-    "mean_ms": 453.1,
-    "std_ms": 55.22,
+    "p50_ms": 74.24,
+    "p95_ms": 91.32,
+    "mean_ms": 75.06,
+    "std_ms": 7.28,
     "total_measurements": 25
   },
   "hybrid_rrf": {
-    "p50_ms": 1249.39,
-    "p95_ms": 1488.81,
-    "mean_ms": 1249.79,
-    "std_ms": 122.58,
+    "p50_ms": 181.46,
+    "p95_ms": 206.44,
+    "mean_ms": 177.55,
+    "std_ms": 16.94,
     "total_measurements": 25
   },
   "cross_encoder": {
     "retrieval_step": {
       "description": "Hybrid RRF retrieval to produce top 50 candidates",
-      "p50_ms": 1236.08,
-      "p95_ms": 1501.1,
-      "mean_ms": 1248.36
+      "p50_ms": 157.2,
+      "p95_ms": 179.94,
+      "mean_ms": 166.46
     },
     "cross_encoder_scoring_step": {
       "description": "Cross-Encoder Transformer forward pass re-ranking 50 pairs on CPU",
-      "p50_ms": 2405.34,
-      "p95_ms": 2574.84,
-      "mean_ms": 2391.62
+      "p50_ms": 2337.29,
+      "p95_ms": 2622.19,
+      "mean_ms": 2371.4
     },
     "end_to_end": {
       "description": "Total pipeline latency (Retrieval + Scoring)",
-      "p50_ms": 3636.65,
-      "p95_ms": 3843.8,
-      "mean_ms": 3639.98,
-      "std_ms": 149.23,
+      "p50_ms": 2479.28,
+      "p95_ms": 2813.02,
+      "mean_ms": 2537.85,
+      "std_ms": 158.64,
       "total_measurements": 25
     }
   }
