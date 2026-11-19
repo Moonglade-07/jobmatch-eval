@@ -24,18 +24,28 @@ from src.index import (
 
 
 def test_compute_content_hash_deterministic() -> None:
-    """Test that content hashing is deterministic and case-insensitive."""
+    """Test that content hashing is deterministic and covers all embedding fields."""
     title = "Machine Learning Engineer"
     desc = "Build scalable recommendation systems."
+    loc = "San Francisco, CA"
+    lvl = "Mid-Senior level"
 
-    hash1 = compute_content_hash(title, desc)
-    hash2 = compute_content_hash(title.lower(), desc.lower())
-    hash3 = compute_content_hash(title, desc + " Additional text")
+    hash1 = compute_content_hash(title, desc, loc, lvl)
+    hash2 = compute_content_hash(
+        title.lower(), desc.lower(), loc.lower(), lvl.lower()
+    )
+    hash_diff_desc = compute_content_hash(
+        title, desc + " Additional text", loc, lvl
+    )
+    hash_diff_loc = compute_content_hash(title, desc, "New York, NY", lvl)
+    hash_diff_lvl = compute_content_hash(title, desc, loc, "Entry level")
 
     assert isinstance(hash1, str)
     assert len(hash1) == 64  # SHA-256 produces 64 hex characters
     assert hash1 == hash2
-    assert hash1 != hash3
+    assert hash1 != hash_diff_desc
+    assert hash1 != hash_diff_loc
+    assert hash1 != hash_diff_lvl
 
 
 def test_format_passage() -> None:

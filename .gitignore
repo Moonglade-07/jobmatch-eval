@@ -23,7 +23,9 @@ htmlcov/
 
 # Vector stores & storage directories
 chroma_db/
+chroma_db*/
 chroma/
+chroma*/
 *.sqlite3
 *.duckdb
 

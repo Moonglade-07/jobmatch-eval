@@ -34,19 +34,32 @@ DEFAULT_COLLECTION_NAME = "jobs"
 DEFAULT_BATCH_SIZE = 128
 
 
-def compute_content_hash(title: str, description: str) -> str:
-    """Compute deterministic SHA-256 hash for document content.
+def compute_content_hash(
+    title: str,
+    description: str,
+    location: str = "",
+    experience_level: str = "",
+) -> str:
+    """Compute deterministic SHA-256 hash for document content and metadata.
 
-    Used to track content integrity, identify document revisions, and deduplicate.
+    Used to track content integrity, identify document revisions, and skip
+    re-embedding unchanged postings during synchronization.
 
     Args:
         title: Normalized job title.
         description: Normalized job description text.
+        location: Normalized location string.
+        experience_level: Normalized experience level string.
 
     Returns:
         Hexadecimal SHA-256 digest string.
     """
-    raw_payload = f"{title.strip().lower()}||{description.strip().lower()}"
+    raw_payload = (
+        f"{title.strip().lower()}||"
+        f"{description.strip().lower()}||"
+        f"{location.strip().lower()}||"
+        f"{experience_level.strip().lower()}"
+    )
     return hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
 
 
@@ -191,7 +204,10 @@ def index_postings(
                 "location": str(row["location"]),
                 "experience_level": str(row["experience_level"]),
                 "content_hash": compute_content_hash(
-                    row["title"], row["description"]
+                    title=str(row["title"]),
+                    description=str(row["description"]),
+                    location=str(row["location"]),
+                    experience_level=str(row["experience_level"]),
                 ),
             }
             for _, row in batch_df.iterrows()
