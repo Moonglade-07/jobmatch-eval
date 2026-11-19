@@ -1,0 +1,126 @@
+{
+  "dataset_name": "LinkedIn Job Postings (2023-2024)",
+  "source_url": "https://huggingface.co/datasets/datastax/linkedin_job_listings",
+  "licence": "Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) / MIT",
+  "row_counts": {
+    "raw_postings_pool": 10000,
+    "clean_postings_available": 9252,
+    "final_sampled_postings": 3000
+  },
+  "description_length": {
+    "avg_characters": 3588.4,
+    "median_characters": 3199,
+    "avg_words": 501.1,
+    "median_words": 446,
+    "min_words": 1,
+    "max_words": 2642
+  },
+  "experience_level_distribution": {
+    "Mid-Senior level": {
+      "count": 1040,
+      "percentage": 34.67
+    },
+    "Entry level": {
+      "count": 1020,
+      "percentage": 34.0
+    },
+    "Not Specified": {
+      "count": 739,
+      "percentage": 24.63
+    },
+    "Director": {
+      "count": 101,
+      "percentage": 3.37
+    },
+    "Internship": {
+      "count": 50,
+      "percentage": 1.67
+    },
+    "Executive": {
+      "count": 50,
+      "percentage": 1.67
+    }
+  },
+  "location_distribution_top20": {
+    "United States": {
+      "count": 233,
+      "percentage": 7.77
+    },
+    "New York, NY": {
+      "count": 59,
+      "percentage": 1.97
+    },
+    "Houston, TX": {
+      "count": 52,
+      "percentage": 1.73
+    },
+    "Dallas, TX": {
+      "count": 34,
+      "percentage": 1.13
+    },
+    "Atlanta, GA": {
+      "count": 29,
+      "percentage": 0.97
+    },
+    "Chicago, IL": {
+      "count": 29,
+      "percentage": 0.97
+    },
+    "Boston, MA": {
+      "count": 27,
+      "percentage": 0.9
+    },
+    "Los Angeles, CA": {
+      "count": 26,
+      "percentage": 0.87
+    },
+    "Denver, CO": {
+      "count": 24,
+      "percentage": 0.8
+    },
+    "Seattle, WA": {
+      "count": 24,
+      "percentage": 0.8
+    },
+    "Charlotte, NC": {
+      "count": 24,
+      "percentage": 0.8
+    },
+    "Las Vegas, NV": {
+      "count": 23,
+      "percentage": 0.77
+    },
+    "Phoenix, AZ": {
+      "count": 21,
+      "percentage": 0.7
+    },
+    "San Diego, CA": {
+      "count": 20,
+      "percentage": 0.67
+    },
+    "Austin, TX": {
+      "count": 20,
+      "percentage": 0.67
+    },
+    "Milwaukee, WI": {
+      "count": 18,
+      "percentage": 0.6
+    },
+    "San Jose, CA": {
+      "count": 17,
+      "percentage": 0.57
+    },
+    "San Francisco, CA": {
+      "count": 16,
+      "percentage": 0.53
+    },
+    "New York City Metropolitan Area": {
+      "count": 16,
+      "percentage": 0.53
+    },
+    "Bronx, NY": {
+      "count": 16,
+      "percentage": 0.53
+    }
+  }
+}

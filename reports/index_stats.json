@@ -1,0 +1,17 @@
+{
+  "collection_name": "jobs",
+  "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "persist_directory": "chroma_db",
+  "embedding_dimension": 384,
+  "total_documents_indexed": 3000,
+  "index_build_time_seconds": 153.75,
+  "indexing_throughput_docs_sec": 19.51,
+  "metadata_fields": [
+    "job_id",
+    "title",
+    "company",
+    "location",
+    "experience_level",
+    "content_hash"
+  ]
+}
