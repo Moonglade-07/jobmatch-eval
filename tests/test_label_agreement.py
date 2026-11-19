@@ -195,3 +195,27 @@ def test_build_unverified_qrels_produces_valid_payload(tmp_path: Path) -> None:
         "note": "qrels are model-proposed and unverified",
     }
 
+
+def test_export_relevant_docs_per_profile_matches_qrels() -> None:
+    """Verify that export_relevant_docs_per_profile correctly tallies judged pairs and relevant docs."""
+    from src.export_relevant_docs_per_profile import export_relevant_docs_per_profile
+
+    payload = export_relevant_docs_per_profile()
+    assert payload["total_profiles"] == 30
+    assert payload["caption"] == "Evaluated against model-proposed, unverified relevance labels"
+    assert len(payload["profiles"]) == 30
+
+    # Verify that exactly 6 profiles have < 3 relevant docs
+    under_3_ids = {p["profile_id"] for p in payload["profiles_with_fewer_than_3_relevant_docs"]}
+    assert under_3_ids == {"prof_01", "prof_07", "prof_09", "prof_11", "prof_19", "prof_23"}
+    assert payload["profiles_with_fewer_than_3_relevant_docs_count"] == 6
+
+    # Verify that prof_07 and prof_23 have exactly 0 relevant docs
+    p07 = next(p for p in payload["profiles"] if p["profile_id"] == "prof_07")
+    p23 = next(p for p in payload["profiles"] if p["profile_id"] == "prof_23")
+    assert p07["relevant_count"] == 0
+    assert p23["relevant_count"] == 0
+    assert p07["target_role"] == "Mobile Developer"
+    assert p23["target_role"] == "Computer Vision Engineer"
+
+

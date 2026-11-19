@@ -1,0 +1,335 @@
+{
+  "caption": "Evaluated against model-proposed, unverified relevance labels",
+  "note": "Relevance labels are rule-based proposed labels (jobmatch-rubric-v1) generated via deterministic heuristics; unverified by humans.",
+  "total_profiles": 30,
+  "profiles_with_fewer_than_3_relevant_docs_count": 6,
+  "profiles_with_fewer_than_3_relevant_docs": [
+    {
+      "profile_id": "prof_01",
+      "target_role": "Machine Learning Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 29,
+      "relevant_count": 1,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_07",
+      "target_role": "Mobile Developer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "San Francisco, CA",
+      "judged_pairs_count": 33,
+      "relevant_count": 0,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_09",
+      "target_role": "Database Administrator",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Houston, TX",
+      "judged_pairs_count": 35,
+      "relevant_count": 2,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_11",
+      "target_role": "QA Automation Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Denver, CO",
+      "judged_pairs_count": 30,
+      "relevant_count": 2,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_19",
+      "target_role": "NLP Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 32,
+      "relevant_count": 1,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_23",
+      "target_role": "Computer Vision Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 31,
+      "relevant_count": 0,
+      "strongly_relevant_count": 0
+    }
+  ],
+  "coverage_finding": "Niche technical roles (such as Computer Vision Engineer, Mobile Developer, NLP Engineer, and Machine Learning Engineer) have very sparse coverage in this 3,000-posting LinkedIn sample, yielding < 3 relevant documents under the strict rubric.",
+  "profiles": [
+    {
+      "profile_id": "prof_01",
+      "target_role": "Machine Learning Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 29,
+      "relevant_count": 1,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_02",
+      "target_role": "Senior Backend Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "New York, NY",
+      "judged_pairs_count": 28,
+      "relevant_count": 10,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_03",
+      "target_role": "Frontend Developer",
+      "seniority": "Entry level",
+      "preferred_location": "Boston, MA",
+      "judged_pairs_count": 41,
+      "relevant_count": 5,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_04",
+      "target_role": "Data Analyst",
+      "seniority": "Entry level",
+      "preferred_location": "Chicago, IL",
+      "judged_pairs_count": 37,
+      "relevant_count": 18,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_05",
+      "target_role": "DevOps Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Dallas, TX",
+      "judged_pairs_count": 29,
+      "relevant_count": 17,
+      "strongly_relevant_count": 2
+    },
+    {
+      "profile_id": "prof_06",
+      "target_role": "Full Stack Developer",
+      "seniority": "Entry level",
+      "preferred_location": "Austin, TX",
+      "judged_pairs_count": 42,
+      "relevant_count": 10,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_07",
+      "target_role": "Mobile Developer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "San Francisco, CA",
+      "judged_pairs_count": 33,
+      "relevant_count": 0,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_08",
+      "target_role": "Security Analyst",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Atlanta, GA",
+      "judged_pairs_count": 27,
+      "relevant_count": 7,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_09",
+      "target_role": "Database Administrator",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Houston, TX",
+      "judged_pairs_count": 35,
+      "relevant_count": 2,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_10",
+      "target_role": "Product Manager",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Seattle, WA",
+      "judged_pairs_count": 34,
+      "relevant_count": 12,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_11",
+      "target_role": "QA Automation Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Denver, CO",
+      "judged_pairs_count": 30,
+      "relevant_count": 2,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_12",
+      "target_role": "Research Scientist",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 34,
+      "relevant_count": 3,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_13",
+      "target_role": "Systems Administrator",
+      "seniority": "Entry level",
+      "preferred_location": "Phoenix, AZ",
+      "judged_pairs_count": 42,
+      "relevant_count": 7,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_14",
+      "target_role": "Site Reliability Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Los Angeles, CA",
+      "judged_pairs_count": 28,
+      "relevant_count": 4,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_15",
+      "target_role": "Data Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "United States",
+      "judged_pairs_count": 28,
+      "relevant_count": 10,
+      "strongly_relevant_count": 3
+    },
+    {
+      "profile_id": "prof_16",
+      "target_role": "Software Engineer",
+      "seniority": "Entry level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 47,
+      "relevant_count": 10,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_17",
+      "target_role": "Embedded Systems Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "San Diego, CA",
+      "judged_pairs_count": 29,
+      "relevant_count": 3,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_18",
+      "target_role": "Customer Success Manager",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "United States",
+      "judged_pairs_count": 38,
+      "relevant_count": 19,
+      "strongly_relevant_count": 6
+    },
+    {
+      "profile_id": "prof_19",
+      "target_role": "NLP Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 32,
+      "relevant_count": 1,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_20",
+      "target_role": "BI Developer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Charlotte, NC",
+      "judged_pairs_count": 31,
+      "relevant_count": 11,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_21",
+      "target_role": "Scrum Master",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "United States",
+      "judged_pairs_count": 35,
+      "relevant_count": 8,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_22",
+      "target_role": "Data Scientist",
+      "seniority": "Entry level",
+      "preferred_location": "New York, NY",
+      "judged_pairs_count": 41,
+      "relevant_count": 15,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_23",
+      "target_role": "Computer Vision Engineer",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 31,
+      "relevant_count": 0,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_24",
+      "target_role": "Solutions Architect",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "Chicago, IL",
+      "judged_pairs_count": 28,
+      "relevant_count": 5,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_25",
+      "target_role": "Director of Engineering",
+      "seniority": "Director",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 47,
+      "relevant_count": 14,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_26",
+      "target_role": "Software Engineer Intern",
+      "seniority": "Internship",
+      "preferred_location": "United States",
+      "judged_pairs_count": 24,
+      "relevant_count": 6,
+      "strongly_relevant_count": 1
+    },
+    {
+      "profile_id": "prof_27",
+      "target_role": "Junior Data Analyst",
+      "seniority": "Entry level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 43,
+      "relevant_count": 32,
+      "strongly_relevant_count": 2
+    },
+    {
+      "profile_id": "prof_28",
+      "target_role": "Junior Software Developer",
+      "seniority": "Entry level",
+      "preferred_location": "United States",
+      "judged_pairs_count": 33,
+      "relevant_count": 21,
+      "strongly_relevant_count": 4
+    },
+    {
+      "profile_id": "prof_29",
+      "target_role": "IT Specialist",
+      "seniority": "Entry level",
+      "preferred_location": "Remote",
+      "judged_pairs_count": 46,
+      "relevant_count": 10,
+      "strongly_relevant_count": 0
+    },
+    {
+      "profile_id": "prof_30",
+      "target_role": "Technical Specialist",
+      "seniority": "Mid-Senior level",
+      "preferred_location": "United States",
+      "judged_pairs_count": 35,
+      "relevant_count": 17,
+      "strongly_relevant_count": 0
+    }
+  ]
+}
