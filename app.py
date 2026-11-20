@@ -43,11 +43,20 @@ MAX_SESSION_REQUESTS = 20
 MAX_DAILY_REQUESTS = 200
 USAGE_TRACKER_FILE = Path("data/cache/daily_usage.json")
 
-# Retrieve API key securely (never exposed in UI or logs)
-API_KEY = (
-    os.getenv("GEMINI_API_KEY")
-    or (st.secrets.get("GEMINI_API_KEY") if hasattr(st, "secrets") else None)
-)
+def _get_api_key() -> Optional[str]:
+    """Retrieve API key securely from environment or Streamlit secrets."""
+    key = os.getenv("GEMINI_API_KEY")
+    if key:
+        return key
+    try:
+        if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
+            return str(st.secrets["GEMINI_API_KEY"])
+    except Exception:
+        pass
+    return None
+
+
+API_KEY = _get_api_key()
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 DISABLE_CROSS_ENCODER = os.getenv("DISABLE_CROSS_ENCODER", "0").lower() in ("1", "true")
 
