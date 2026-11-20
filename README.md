@@ -268,12 +268,12 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 ### 1. Schema Validity & Fallback Robustness
 *Programmatic checks against job text; no human or LLM judge*
 
-| Metric | Measured Value | 95% Cluster Bootstrap CI | Description |
-|---|---|---|---|
-| **JSON Valid First Try Rate** | 100.00% (150/150) | n too small | Responses passing Pydantic schema on initial attempt |
-| **Retries Needed** | 0 calls (0.00%) | — | Total calls requiring repair prompt |
-| **JSON Valid After Retry Rate** | 100.00% | — | Cumulative validity after allowed single retry ($\ge$ first-try rate) |
-| **Fallback Rate** | 0.00% (0/150) | n too small | Calls returning fallback (`explanation=null`) |
+| Metric | Observed Count | Measured Value | 95% Confidence / Upper Bound | Description |
+|---|---|---|---|---|
+| **JSON Valid First Try Rate** | 150/150 (0 failures) | **100.00%** | <= 2.00% failures (95% rule-of-three: <= 3/150) | Responses passing Pydantic schema on initial attempt |
+| **Retries Needed** | 0/150 calls | **0.00%** | — | Total calls requiring repair prompt |
+| **JSON Valid After Retry Rate** | 150/150 | **100.00%** | — | Cumulative validity after allowed single retry ($\ge$ first-try rate) |
+| **Fallback Rate** | 0/150 calls | **0.00%** | <= 2.00% (95% rule-of-three: <= 3/150) | Calls returning fallback (`explanation=null`) |
 
 > **Fallback Breakdown**: `invalid_json: 0`, `validation_error: 0`, `api_error: 0`, `timeout: 0`, `quota: 0` across all 150 calls.
 

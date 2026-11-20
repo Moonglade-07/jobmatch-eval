@@ -33,6 +33,10 @@ DATASET_LICENCE = (
 DATASET_NAME = "LinkedIn Job Postings (2023-2024)"
 
 HTML_TAG_REGEX = re.compile(r"<[^>]+>")
+BLOCK_TAG_REGEX = re.compile(
+    r"</?(?:p|div|li|ul|ol|br|h[1-6]|tr|td|th|table|blockquote|section|article|header|footer)[^>]*>",
+    re.IGNORECASE,
+)
 WHITESPACE_REGEX = re.compile(r"\s+")
 
 TITLE_INTERN_REGEX = re.compile(
@@ -53,7 +57,7 @@ TITLE_EXECUTIVE_REGEX = re.compile(
 
 
 def strip_html(text: Optional[str]) -> str:
-    """Strip HTML markup and unescape HTML entities.
+    """Strip HTML markup and unescape HTML entities, ensuring block tags are spaced.
 
     Args:
         text: Raw text string containing optional HTML markup.
@@ -64,7 +68,9 @@ def strip_html(text: Optional[str]) -> str:
     if not text or not isinstance(text, str):
         return ""
     unescaped = html.unescape(text)
-    clean_text = HTML_TAG_REGEX.sub(" ", unescaped)
+    # Ensure block-level tag boundaries have space separation to avoid joined words
+    with_block_spaces = BLOCK_TAG_REGEX.sub(" ", unescaped)
+    clean_text = HTML_TAG_REGEX.sub(" ", with_block_spaces)
     return clean_text
 
 

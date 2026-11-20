@@ -830,6 +830,19 @@ def evaluate_explanations(
     ci_first_try = compute_bootstrap_profile_ci(prof_first_try)
     ci_fallback = compute_bootstrap_profile_ci(prof_fallbacks)
 
+    rule_of_three_upper = round(3.0 / n_calls, 4) if n_calls > 0 else 0.0
+    first_try_failures = n_calls - first_try_valid
+    first_try_ci_val = (
+        ci_first_try
+        if ci_first_try is not None
+        else f"<= {rule_of_three_upper * 100:.2f}% failures (95% rule-of-three: <= 3/{n_calls})"
+    )
+    fallback_ci_val = (
+        ci_fallback
+        if ci_fallback is not None
+        else f"<= {rule_of_three_upper * 100:.2f}% (95% rule-of-three: <= 3/{n_calls})"
+    )
+
     # 4. Latency & Tokens (Live calls only)
     live_results = [r for r in results if not r.cache_hit]
     latencies = [r.latency_ms for r in live_results if r.latency_ms > 0]
@@ -856,13 +869,17 @@ def evaluate_explanations(
         "gemini_model": model_used,
         "prompt_version": prompt_ver,
         "validity": {
+            "json_valid_first_try_count": first_try_valid,
             "json_valid_first_try_rate": round(first_try_rate, 4),
-            "json_valid_first_try_ci_95": ci_first_try if ci_first_try is not None else "n too small",
+            "json_valid_first_try_failures": first_try_failures,
+            "json_valid_first_try_ci_95": first_try_ci_val,
             "retries_needed_count": retries_needed,
             "retries_needed_rate": round(retries_needed / n_calls, 4),
+            "json_valid_after_retry_count": valid_after_retry,
             "json_valid_after_retry_rate": round(valid_after_retry_rate, 4),
+            "fallback_count": n_fallbacks,
             "fallback_rate": round(fallback_rate, 4),
-            "fallback_ci_95": ci_fallback if ci_fallback is not None else "n too small",
+            "fallback_ci_95": fallback_ci_val,
             "fallback_breakdown": fallback_breakdown,
         },
         "groundedness": {

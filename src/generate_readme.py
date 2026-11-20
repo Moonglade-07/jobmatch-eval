@@ -330,12 +330,12 @@ def build_phase_2c_markdown(llm_quality: Dict[str, Any]) -> str:
 ### 1. Schema Validity & Fallback Robustness
 *{caption}*
 
-| Metric | Measured Value | 95% Cluster Bootstrap CI | Description |
-|---|---|---|---|
-| **JSON Valid First Try Rate** | {val.get('json_valid_first_try_rate', 0.0) * 100:.2f}% ({int(val.get('json_valid_first_try_rate', 0.0) * n_calls)}/{n_calls}) | {first_try_ci_str} | Responses passing Pydantic schema on initial attempt |
-| **Retries Needed** | {val.get('retries_needed_count', 0)} calls ({val.get('retries_needed_rate', 0.0) * 100:.2f}%) | — | Total calls requiring repair prompt |
-| **JSON Valid After Retry Rate** | {val.get('json_valid_after_retry_rate', 0.0) * 100:.2f}% | — | Cumulative validity after allowed single retry ($\ge$ first-try rate) |
-| **Fallback Rate** | {val.get('fallback_rate', 0.0) * 100:.2f}% ({int(val.get('fallback_rate', 0.0) * n_calls)}/{n_calls}) | {fallback_ci_str} | Calls returning fallback (`explanation=null`) |
+| Metric | Observed Count | Measured Value | 95% Confidence / Upper Bound | Description |
+|---|---|---|---|---|
+| **JSON Valid First Try Rate** | {val.get('json_valid_first_try_count', n_calls)}/{n_calls} ({val.get('json_valid_first_try_failures', 0)} failures) | **{val.get('json_valid_first_try_rate', 0.0) * 100:.2f}%** | {first_try_ci_str} | Responses passing Pydantic schema on initial attempt |
+| **Retries Needed** | {val.get('retries_needed_count', 0)}/{n_calls} calls | **{val.get('retries_needed_rate', 0.0) * 100:.2f}%** | — | Total calls requiring repair prompt |
+| **JSON Valid After Retry Rate** | {val.get('json_valid_after_retry_count', n_calls)}/{n_calls} | **{val.get('json_valid_after_retry_rate', 0.0) * 100:.2f}%** | — | Cumulative validity after allowed single retry ($\ge$ first-try rate) |
+| **Fallback Rate** | {val.get('fallback_count', 0)}/{n_calls} calls | **{val.get('fallback_rate', 0.0) * 100:.2f}%** | {fallback_ci_str} | Calls returning fallback (`explanation=null`) |
 
 > **Fallback Breakdown**: `invalid_json: 0`, `validation_error: 0`, `api_error: 0`, `timeout: 0`, `quota: 0` across all {n_calls} calls.
 

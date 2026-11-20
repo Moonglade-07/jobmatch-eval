@@ -24,6 +24,26 @@ def test_strip_html_basic_and_entities() -> None:
     assert clean_text(cleaned) == expected
 
 
+def test_strip_html_block_tags_boundary_spacing() -> None:
+    """Test that block-level HTML tags insert space separation to prevent joined words."""
+    # Adjacent list items
+    html_bullets = "<ul><li>JavaScript</li><li>Understanding of software</li></ul>"
+    assert clean_text(strip_html(html_bullets)) == "JavaScript Understanding of software"
+
+    # Adjacent paragraphs without whitespace
+    html_paragraphs = "<p>First paragraph</p><p>Second paragraph</p>"
+    assert clean_text(strip_html(html_paragraphs)) == "First paragraph Second paragraph"
+
+    # Line break without whitespace
+    html_br = "LineOne<br>LineTwo<br/>LineThree"
+    assert clean_text(strip_html(html_br)) == "LineOne LineTwo LineThree"
+
+    # Table cells
+    html_table = "<tr><td>Tableau</td><td>Experience</td></tr>"
+    assert clean_text(strip_html(html_table)) == "Tableau Experience"
+
+
+
 def test_strip_html_none_and_empty() -> None:
     """Test HTML stripping handles None, empty string, and whitespace gracefully."""
     assert strip_html(None) == ""
