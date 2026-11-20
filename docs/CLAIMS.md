@@ -30,12 +30,12 @@ Every claim is cross-referenced with exact numbers, files in `reports/`, and doc
   - Profile support: **92.42% pooled** of claimed skills verified in candidate profile (`reports/llm_quality.json`).
   - Contradiction leakage: **0.31% pooled** (4/1,278 missing skills) (`reports/llm_quality.json`).
 
-### Claim 1.4: Multi-turn conversational agent preserves constraints with 100% memory retention across scripted turns.
+### Claim 1.4: Multi-turn conversational agent preserves constraints across scripted turns.
 - **Status**: **SUPPORTED BY EMPIRICAL EVIDENCE**
 - **Measured Number & File**:
-  - Behavioral scenario pass rate: **9/10 (90.0%)** across 28 turns (`reports/agent_eval.json`).
-  - Memory retention rate: **100.0%** (23/23 programmatic memory assertions passed) (`reports/agent_eval.json`).
-  - Tool call success rate: **96.9%** (31/32 calls; 1 expected failure on non-existent job ID) (`reports/agent_eval.json`).
+  - Scripted scenario results: **8/10 on the first run (scenario 8 failed on a transient API error and passed on rerun; scenario 10 failed)** across 28 total turns (`reports/agent_eval.json`).
+  - Memory retention rate: **100.0% memory state retained** (23/23 programmatic memory assertions passed) (`reports/agent_eval.json`).
+  - Tool call success rate: **96.9%** (31/32 calls; includes 1 intentional error testing an invalid job ID in `scenario_06`) (`reports/agent_eval.json`).
   - Mean tool steps per turn: **2.14 steps** (capped strictly at 5 steps per turn) (`reports/agent_eval.json`).
 
 ---
