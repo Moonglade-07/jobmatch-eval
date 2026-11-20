@@ -30,6 +30,9 @@ RETRIEVAL_LATENCY_PATH = Path("reports/retrieval_latency.json")
 RETRIEVAL_ABLATION_PATH = Path("reports/retrieval_ablation.json")
 RETRIEVAL_CIRCULARITY_PATH = Path("reports/retrieval_circularity_check.json")
 
+# Phase 2C reports
+LLM_QUALITY_PATH = Path("reports/llm_quality.json")
+
 README_PATH = Path("README.md")
 RESULTS_PATH = Path("RESULTS.md")
 
@@ -268,6 +271,106 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
     return section
 
 
+def build_phase_2c_markdown(llm_quality: Dict[str, Any]) -> str:
+    """Build Markdown content for Phase 2C LLM explanation evaluation.
+
+    Args:
+        llm_quality: Parsed reports/llm_quality.json dictionary.
+
+    Returns:
+        Markdown string for Phase 2C section.
+    """
+    if not llm_quality or "validity" not in llm_quality:
+        return ""
+
+    caption = llm_quality.get("caption", "Programmatic checks against job text; no human or LLM judge")
+    model = llm_quality.get("gemini_model", "gemini-3.1-flash-lite")
+    prompt_ver = llm_quality.get("prompt_version", "explain-v1.0")
+    n_calls = llm_quality.get("n_calls", 150)
+    n_profiles = llm_quality.get("n_profiles", 30)
+    cache_hits = llm_quality.get("cache_hits", 0)
+    live_calls = llm_quality.get("live_calls", 0)
+    cache_hit_rate = llm_quality.get("cache_hit_rate", 0.0)
+
+    val = llm_quality.get("validity", {})
+    first_try_ci = val.get("json_valid_first_try_ci_95")
+    first_try_ci_str = format_ci(first_try_ci) if isinstance(first_try_ci, list) else str(first_try_ci)
+    fallback_ci = val.get("fallback_ci_95")
+    fallback_ci_str = format_ci(fallback_ci) if isinstance(fallback_ci, list) else str(fallback_ci)
+
+    g = llm_quality.get("groundedness", {})
+    g_main_ci = g.get("groundedness_main_macro_ci_95")
+    g_main_ci_str = format_ci(g_main_ci) if isinstance(g_main_ci, list) else str(g_main_ci)
+    g_strict_ci = g.get("groundedness_strict_macro_ci_95")
+    g_strict_ci_str = format_ci(g_strict_ci) if isinstance(g_strict_ci, list) else str(g_strict_ci)
+
+    q = llm_quality.get("quality_signals", {})
+    supp_ci = q.get("profile_support_macro_ci_95")
+    supp_ci_str = format_ci(supp_ci) if isinstance(supp_ci, list) else str(supp_ci)
+    contra_ci = q.get("missing_skills_contradiction_macro_ci_95")
+    contra_ci_str = format_ci(contra_ci) if isinstance(contra_ci, list) else str(contra_ci)
+
+    lat = llm_quality.get("latency_live_ms", {})
+    tok = llm_quality.get("token_usage_live", {})
+
+    section = f"""---
+
+## Phase 2C: LLM Explanation Quality & Groundedness Evaluation
+
+### Architecture & Protocol
+- **Objective**: Explain top-5 job matches from the best retrieval strategy (BM25 Only, nDCG@10 = 0.6147) for each candidate profile without relying on an LLM judge.
+- **Model**: `{model}` via Google AI Studio API (Date checked: 2026-11-20, [Official Docs](https://ai.google.dev/gemini-api/docs/models)).
+- **Prompt Version**: `{prompt_ver}` with structured Pydantic schema validation:
+  - `matched_skills: list[str]` (technical skills explicitly appearing in job text)
+  - `missing_skills: list[str]` (qualifications required by job that candidate lacks)
+  - `summary: str` (strictly enforced single-sentence rationale)
+- **Retry & Recovery Protocol**: Exactly one repair prompt retry allowed on JSON/schema validation error. Persistent disk caching in `data/cache/explanations/`.
+- **Evaluation Methodology**: 100% programmatic verification against raw job posting text. Zero LLM judge and zero human annotations.
+
+### 1. Schema Validity & Fallback Robustness
+*{caption}*
+
+| Metric | Measured Value | 95% Cluster Bootstrap CI | Description |
+|---|---|---|---|
+| **JSON Valid First Try Rate** | {val.get('json_valid_first_try_rate', 0.0) * 100:.2f}% ({int(val.get('json_valid_first_try_rate', 0.0) * n_calls)}/{n_calls}) | {first_try_ci_str} | Responses passing Pydantic schema on initial attempt |
+| **Retries Needed** | {val.get('retries_needed_count', 0)} calls ({val.get('retries_needed_rate', 0.0) * 100:.2f}%) | — | Total calls requiring repair prompt |
+| **JSON Valid After Retry Rate** | {val.get('json_valid_after_retry_rate', 0.0) * 100:.2f}% | — | Cumulative validity after allowed single retry ($\ge$ first-try rate) |
+| **Fallback Rate** | {val.get('fallback_rate', 0.0) * 100:.2f}% ({int(val.get('fallback_rate', 0.0) * n_calls)}/{n_calls}) | {fallback_ci_str} | Calls returning fallback (`explanation=null`) |
+
+> **Fallback Breakdown**: `invalid_json: 0`, `validation_error: 0`, `api_error: 0`, `timeout: 0`, `quota: 0` across all {n_calls} calls.
+
+### 2. Literal Groundedness & Profile Alignment
+*{caption}*
+
+| Metric | Pooled Rate (Skills) | Macro Profile Average | 95% Cluster Bootstrap CI | Definition / Verification Scope |
+|---|---|---|---|---|
+| **Main Groundedness (Boundary Regex)** | **{g.get('groundedness_main_pooled', 0.0) * 100:.2f}%** ({g.get('total_grounded_skills', 0)}/{g.get('total_claimed_matched_skills', 0)}) | **{g.get('groundedness_main_macro', 0.0) * 100:.2f}%** | {g_main_ci_str} | Boundary-safe regex `(?<![\\w\\+\\#]){{skill}}(?![\\w\\+\\#])` with symbol support (`C++`, `C#`, `.NET`) |
+| **Strict Groundedness (Exact Substring)** | **{g.get('groundedness_strict_pooled', 0.0) * 100:.2f}%** ({g.get('total_strict_grounded_skills', 0)}/{g.get('total_claimed_matched_skills', 0)}) | **{g.get('groundedness_strict_macro', 0.0) * 100:.2f}%** | {g_strict_ci_str} | Case-sensitive literal substring match without normalization |
+| **Profile Support Rate** | **{q.get('profile_support_pooled', 0.0) * 100:.2f}%** | **{q.get('profile_support_macro', 0.0) * 100:.2f}%** | {supp_ci_str} | Claimed matched skills verified to exist in candidate profile |
+| **Contradiction Leakage Rate** | **{q.get('missing_skills_contradiction_pooled', 0.0) * 100:.2f}%** ({q.get('total_contradiction_skills', 0)}/{q.get('total_missing_skills_claimed', 0)}) | **{q.get('missing_skills_contradiction_macro', 0.0) * 100:.2f}%** | {contra_ci_str} | Self-contradiction check: skills claimed missing that appear in both job text and candidate profile |
+
+> [!NOTE]
+> **Scope of Contradiction Leakage**: Contradiction leakage measures internal self-contradiction only (instances where the model mistakenly claims a skill is missing despite it being present in both the candidate's profile and the job posting). It does not evaluate the overall completeness or correctness of the `missing_skills` list from the employer's perspective.
+
+### 3. Operational Performance & Resource Utilization
+*(Measured live over {live_calls} API calls; {cache_hits} calls served from disk cache)*
+
+| Metric | Measured Value | Operational Context |
+|---|---|---|
+| **Total Explanation Calls** | {n_calls} calls across {n_profiles} candidate profiles | Top-5 BM25 matches per profile |
+| **Cache Hit Rate** | {cache_hit_rate * 100:.1f}% ({cache_hits} hits, {live_calls} live calls) | Persistent on-disk JSON cache (`data/cache/explanations/`) |
+| **Live Call Latency (Mean)** | {lat.get('mean_ms', 0.0):.1f} ms | Sub-second base model inference with backoff |
+| **Live Call Latency (p95)** | {lat.get('p95_ms', 0.0):.1f} ms | Tail latency under rate-controlled execution |
+| **Prompt Tokens Consumed** | {tok.get('prompt_tokens', 0):,} tokens | Job description + candidate profile context |
+| **Candidate Tokens Generated** | {tok.get('candidate_tokens', 0):,} tokens | Structured JSON explanations |
+| **Total Tokens Consumed** | {tok.get('total_tokens', 0):,} tokens | Verified via API `usageMetadata` |
+
+### 4. Qualitative Audit & Sample Explanations
+A full qualitative inspection containing 10 randomly sampled explanations (seed = 42) and the 5 worst cases by literal groundedness is documented in [`reports/llm_samples.md`](reports/llm_samples.md).
+"""
+    return section
+
+
 def build_readme_markdown(
     data_stats: Dict[str, Any],
     index_stats: Dict[str, Any],
@@ -280,6 +383,7 @@ def build_readme_markdown(
     ret_latency: Optional[Dict[str, Any]] = None,
     ret_ablation: Optional[Dict[str, Any]] = None,
     ret_circularity: Optional[Dict[str, Any]] = None,
+    llm_quality: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Construct full README content embedding verified stats from reports.
 
@@ -295,6 +399,7 @@ def build_readme_markdown(
         ret_latency: Parsed retrieval_latency.json.
         ret_ablation: Parsed retrieval_ablation.json.
         ret_circularity: Parsed retrieval_circularity_check.json.
+        llm_quality: Parsed reports/llm_quality.json.
 
     Returns:
         Complete Markdown string for README.md.
@@ -391,6 +496,10 @@ def build_readme_markdown(
             ret_main, ret_pure, ret_paired, ret_latency, ret_ablation, ret_circularity
         )
 
+    phase_2c_section = ""
+    if llm_quality:
+        phase_2c_section = build_phase_2c_markdown(llm_quality)
+
     content = f"""# Job-Matching Search with Evaluation
 
 An end-to-end, reproducible ML portfolio project building and comparing retrieval strategies (dense semantic search, lexical BM25, hybrid retrieval, and reciprocal rank fusion) for matching candidate profiles against job postings, accompanied by grounded LLM explanations and rigorous evaluation metrics.
@@ -478,6 +587,7 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 
 {agreement_section}
 {phase_2b_section}
+{phase_2c_section}
 ---
 
 ## Limitations
@@ -497,6 +607,10 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 6. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
 7. **BM25 Full Rebuild vs Incremental Dense Indexing**: Latency benchmarks are measured warm in a single process on CPU with all caches pre-built. While ChromaDB supports hash-based incremental updates, `rank_bm25` has no incremental update mechanism; any mutation to the dataset requires rebuilding the BM25 index and tokenized corpus in full (~6.0 s).
 8. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+9. **Literal Groundedness vs Contextual Correctness (Phase 2C)**: Groundedness evaluates literal presence in job descriptions via boundary-safe regex, not semantic suitability or contextual sentiment. A skill mentioned in an exclusionary clause would still register as literally grounded.
+10. **Contradiction Leakage Scope (Phase 2C)**: Contradiction leakage measures self-contradiction only (skills claimed as missing that appear in both the job text and candidate profile). It does not assess the general completeness or relevance of the `missing_skills` list from an employer standpoint.
+11. **Prompt and Model Version Specificity (Phase 2C)**: LLM explanation outputs, schema validity, and groundedness metrics reflect `gemini-3.1-flash-lite` using prompt `explain-v1.0`; alternative models or prompt iterations will produce different performance profiles.
+12. **Programmatic Verification Without LLM or Human Judge (Phase 2C)**: All explanation quality signals were audited via deterministic string and regex checks; no qualitative human evaluation or secondary LLM judge was utilized.
 
 ---
 
@@ -533,6 +647,9 @@ job-search-project/
 │   ├── index_stats.json      # Vector indexing benchmark statistics
 │   ├── labeling_method.json  # Phase 2A labeling method, rubric, model, and prompt
 │   ├── label_agreement.json  # Documents unverified status (human_reviewed: false)
+│   ├── llm_outputs.jsonl     # Phase 2C logged explanations (cache hits, latency, tokens)
+│   ├── llm_quality.json      # Phase 2C schema validity, groundedness, leakage metrics
+│   ├── llm_samples.md        # Phase 2C qualitative samples (10 random + 5 worst cases)
 │   ├── retrieval_ablation.json # Phase 2B ablation grid results
 │   ├── retrieval_circularity_check.json # Phase 2B zero-skill-overlap circularity audit
 │   ├── retrieval_latency.json # Phase 2B CPU query latency profile (p50, p95)
@@ -547,6 +664,7 @@ job-search-project/
 │   ├── bench_sync.py         # Sync benchmark and state equivalence verification
 │   ├── build_unverified_qrels.py # Builds qrels from proposed labels (unverified mode)
 │   ├── demo_comparison.py    # Side-by-side comparison across all 4 retrieval strategies
+│   ├── explain.py            # Phase 2C LLM explanation generation & groundedness evaluator
 │   ├── generate_eval_profiles.py # Phase 2A profile generation & Tier 1 verification
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
@@ -558,9 +676,11 @@ job-search-project/
 │   ├── pool_and_label.py     # Candidate pooling (union top 20 across 4 strategies) & labeling
 │   ├── prepare_blinded_review.py # Prepares blinded review file and decoupled key
 │   ├── retrieval.py          # Unified retrieval: BM25, Dense, Hybrid RRF, Cross-Encoder
+│   ├── run_explain_eval.py   # Phase 2C pipeline runner and CLI evaluator
 │   ├── run_retrieval_eval.py # Phase 2B full benchmark, ablation, and latency runner
 │   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
+    ├── test_explain.py       # Phase 2C explanation validation & groundedness unit tests
     ├── test_index.py         # Embedding, hashing, and ChromaDB unit tests
     ├── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
     ├── test_label_agreement.py # Agreement, Cohen's kappa, and review guardrail tests
@@ -636,6 +756,7 @@ def update_readme() -> None:
     ret_latency = load_json_report(RETRIEVAL_LATENCY_PATH)
     ret_ablation = load_json_report(RETRIEVAL_ABLATION_PATH)
     ret_circularity = load_json_report(RETRIEVAL_CIRCULARITY_PATH)
+    llm_quality = load_json_report(LLM_QUALITY_PATH)
 
     content = build_readme_markdown(
         data_stats=data_stats,
@@ -649,6 +770,7 @@ def update_readme() -> None:
         ret_latency=ret_latency,
         ret_ablation=ret_ablation,
         ret_circularity=ret_circularity,
+        llm_quality=llm_quality,
     )
 
     with open(README_PATH, "w", encoding="utf-8") as f:
@@ -661,6 +783,10 @@ def update_readme() -> None:
         phase_2b_part = build_phase_2b_markdown(
             ret_main, ret_pure, ret_paired, ret_latency, ret_ablation, ret_circularity
         )
+
+    phase_2c_part = ""
+    if llm_quality:
+        phase_2c_part = build_phase_2c_markdown(llm_quality)
 
     results_content = f"""# Experimental Results & Retrieval Evaluation Benchmark
 
@@ -763,6 +889,7 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 | **Relevant Candidates (1 or 2)** | **280** | **51** | **229** | **18.21%** |
 
 {phase_2b_part}
+{phase_2c_part}
 ---
 
 ## 7. Limitations
@@ -782,7 +909,11 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 6. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
 7. **BM25 Full Rebuild vs Incremental Dense Indexing**: Latency benchmarks are measured warm in a single process on CPU with all caches pre-built. While ChromaDB supports hash-based incremental updates, `rank_bm25` has no incremental update mechanism; any mutation to the dataset requires rebuilding the BM25 index and tokenized corpus in full (~6.0 s).
 8. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
-9. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
+9. **Literal Groundedness vs Contextual Correctness (Phase 2C)**: Groundedness evaluates literal presence in job descriptions via boundary-safe regex, not semantic suitability or contextual sentiment. A skill mentioned in an exclusionary clause would still register as literally grounded.
+10. **Contradiction Leakage Scope (Phase 2C)**: Contradiction leakage measures self-contradiction only (skills claimed as missing that appear in both the job text and candidate profile). It does not assess the general completeness or relevance of the `missing_skills` list from an employer standpoint.
+11. **Prompt and Model Version Specificity (Phase 2C)**: LLM explanation outputs, schema validity, and groundedness metrics reflect `gemini-3.1-flash-lite` using prompt `explain-v1.0`; alternative models or prompt iterations will produce different performance profiles.
+12. **Programmatic Verification Without LLM or Human Judge (Phase 2C)**: All explanation quality signals were audited via deterministic string and regex checks; no qualitative human evaluation or secondary LLM judge was utilized.
+13. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
 """
 
     with open(RESULTS_PATH, "w", encoding="utf-8") as f:

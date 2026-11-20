@@ -1,0 +1,74 @@
+{
+  "caption": "Programmatic checks against job text; no human or LLM judge",
+  "n_calls": 150,
+  "n_profiles": 30,
+  "cache_hits": 25,
+  "live_calls": 125,
+  "cache_hit_rate": 0.1667,
+  "gemini_model": "gemini-3.1-flash-lite",
+  "prompt_version": "explain-v1.0",
+  "validity": {
+    "json_valid_first_try_rate": 1.0,
+    "json_valid_first_try_ci_95": "n too small",
+    "retries_needed_count": 0,
+    "retries_needed_rate": 0.0,
+    "json_valid_after_retry_rate": 1.0,
+    "fallback_rate": 0.0,
+    "fallback_ci_95": "n too small",
+    "fallback_breakdown": {
+      "invalid_json": 0,
+      "validation_error": 0,
+      "api_error": 0,
+      "timeout": 0,
+      "quota": 0
+    }
+  },
+  "groundedness": {
+    "groundedness_main_pooled": 0.917,
+    "groundedness_main_macro": 0.9179,
+    "groundedness_main_macro_ci_95": [
+      0.8772,
+      0.9566
+    ],
+    "groundedness_strict_pooled": 0.7942,
+    "groundedness_strict_macro": 0.7758,
+    "groundedness_strict_macro_ci_95": [
+      0.6918,
+      0.854
+    ],
+    "total_claimed_matched_skills": 277,
+    "total_grounded_skills": 254,
+    "total_strict_grounded_skills": 220,
+    "groundedness_main": 0.917,
+    "groundedness_strict": 0.7942
+  },
+  "quality_signals": {
+    "profile_support_pooled": 0.9242,
+    "profile_support_macro": 0.9306,
+    "profile_support_macro_ci_95": [
+      0.8905,
+      0.9661
+    ],
+    "missing_skills_contradiction_pooled": 0.0031,
+    "missing_skills_contradiction_macro": 0.0036,
+    "missing_skills_contradiction_macro_ci_95": [
+      0.0006,
+      0.0072
+    ],
+    "total_missing_skills_claimed": 1278,
+    "total_contradiction_skills": 4,
+    "contradiction_definition": "Self-contradiction only: skills claimed as missing that appear in both the job text and the candidate profile; does not measure correctness of missing_skills.",
+    "profile_support": 0.9242,
+    "missing_skills_leakage": 0.0031
+  },
+  "latency_live_ms": {
+    "mean_ms": 3022.61,
+    "p95_ms": 10332.45,
+    "measured_live_calls": 125
+  },
+  "token_usage_live": {
+    "prompt_tokens": 113032,
+    "candidate_tokens": 15563,
+    "total_tokens": 128595
+  }
+}

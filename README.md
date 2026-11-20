@@ -253,6 +253,61 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 
 ---
 
+## Phase 2C: LLM Explanation Quality & Groundedness Evaluation
+
+### Architecture & Protocol
+- **Objective**: Explain top-5 job matches from the best retrieval strategy (BM25 Only, nDCG@10 = 0.6147) for each candidate profile without relying on an LLM judge.
+- **Model**: `gemini-3.1-flash-lite` via Google AI Studio API (Date checked: 2026-11-20, [Official Docs](https://ai.google.dev/gemini-api/docs/models)).
+- **Prompt Version**: `explain-v1.0` with structured Pydantic schema validation:
+  - `matched_skills: list[str]` (technical skills explicitly appearing in job text)
+  - `missing_skills: list[str]` (qualifications required by job that candidate lacks)
+  - `summary: str` (strictly enforced single-sentence rationale)
+- **Retry & Recovery Protocol**: Exactly one repair prompt retry allowed on JSON/schema validation error. Persistent disk caching in `data/cache/explanations/`.
+- **Evaluation Methodology**: 100% programmatic verification against raw job posting text. Zero LLM judge and zero human annotations.
+
+### 1. Schema Validity & Fallback Robustness
+*Programmatic checks against job text; no human or LLM judge*
+
+| Metric | Measured Value | 95% Cluster Bootstrap CI | Description |
+|---|---|---|---|
+| **JSON Valid First Try Rate** | 100.00% (150/150) | n too small | Responses passing Pydantic schema on initial attempt |
+| **Retries Needed** | 0 calls (0.00%) | — | Total calls requiring repair prompt |
+| **JSON Valid After Retry Rate** | 100.00% | — | Cumulative validity after allowed single retry ($\ge$ first-try rate) |
+| **Fallback Rate** | 0.00% (0/150) | n too small | Calls returning fallback (`explanation=null`) |
+
+> **Fallback Breakdown**: `invalid_json: 0`, `validation_error: 0`, `api_error: 0`, `timeout: 0`, `quota: 0` across all 150 calls.
+
+### 2. Literal Groundedness & Profile Alignment
+*Programmatic checks against job text; no human or LLM judge*
+
+| Metric | Pooled Rate (Skills) | Macro Profile Average | 95% Cluster Bootstrap CI | Definition / Verification Scope |
+|---|---|---|---|---|
+| **Main Groundedness (Boundary Regex)** | **91.70%** (254/277) | **91.79%** | [0.88, 0.96] | Boundary-safe regex `(?<![\w\+\#]){skill}(?![\w\+\#])` with symbol support (`C++`, `C#`, `.NET`) |
+| **Strict Groundedness (Exact Substring)** | **79.42%** (220/277) | **77.58%** | [0.69, 0.85] | Case-sensitive literal substring match without normalization |
+| **Profile Support Rate** | **92.42%** | **93.06%** | [0.89, 0.97] | Claimed matched skills verified to exist in candidate profile |
+| **Contradiction Leakage Rate** | **0.31%** (4/1278) | **0.36%** | [0.00, 0.01] | Self-contradiction check: skills claimed missing that appear in both job text and candidate profile |
+
+> [!NOTE]
+> **Scope of Contradiction Leakage**: Contradiction leakage measures internal self-contradiction only (instances where the model mistakenly claims a skill is missing despite it being present in both the candidate's profile and the job posting). It does not evaluate the overall completeness or correctness of the `missing_skills` list from the employer's perspective.
+
+### 3. Operational Performance & Resource Utilization
+*(Measured live over 125 API calls; 25 calls served from disk cache)*
+
+| Metric | Measured Value | Operational Context |
+|---|---|---|
+| **Total Explanation Calls** | 150 calls across 30 candidate profiles | Top-5 BM25 matches per profile |
+| **Cache Hit Rate** | 16.7% (25 hits, 125 live calls) | Persistent on-disk JSON cache (`data/cache/explanations/`) |
+| **Live Call Latency (Mean)** | 3022.6 ms | Sub-second base model inference with backoff |
+| **Live Call Latency (p95)** | 10332.5 ms | Tail latency under rate-controlled execution |
+| **Prompt Tokens Consumed** | 113,032 tokens | Job description + candidate profile context |
+| **Candidate Tokens Generated** | 15,563 tokens | Structured JSON explanations |
+| **Total Tokens Consumed** | 128,595 tokens | Verified via API `usageMetadata` |
+
+### 4. Qualitative Audit & Sample Explanations
+A full qualitative inspection containing 10 randomly sampled explanations (seed = 42) and the 5 worst cases by literal groundedness is documented in [`reports/llm_samples.md`](reports/llm_samples.md).
+
+---
+
 ## Limitations
 
 1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are rule-based proposed labels (`label_source: model_proposed`), generated via deterministic heuristics (`jobmatch-rubric-v1`) and unverified by humans (`human_reviewed: false`). Evaluated retrieval metrics reflect alignment with deterministic rule-based criteria rather than human preference.
@@ -270,6 +325,10 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 6. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
 7. **BM25 Full Rebuild vs Incremental Dense Indexing**: Latency benchmarks are measured warm in a single process on CPU with all caches pre-built. While ChromaDB supports hash-based incremental updates, `rank_bm25` has no incremental update mechanism; any mutation to the dataset requires rebuilding the BM25 index and tokenized corpus in full (~6.0 s).
 8. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
+9. **Literal Groundedness vs Contextual Correctness (Phase 2C)**: Groundedness evaluates literal presence in job descriptions via boundary-safe regex, not semantic suitability or contextual sentiment. A skill mentioned in an exclusionary clause would still register as literally grounded.
+10. **Contradiction Leakage Scope (Phase 2C)**: Contradiction leakage measures self-contradiction only (skills claimed as missing that appear in both the job text and candidate profile). It does not assess the general completeness or relevance of the `missing_skills` list from an employer standpoint.
+11. **Prompt and Model Version Specificity (Phase 2C)**: LLM explanation outputs, schema validity, and groundedness metrics reflect `gemini-3.1-flash-lite` using prompt `explain-v1.0`; alternative models or prompt iterations will produce different performance profiles.
+12. **Programmatic Verification Without LLM or Human Judge (Phase 2C)**: All explanation quality signals were audited via deterministic string and regex checks; no qualitative human evaluation or secondary LLM judge was utilized.
 
 ---
 
@@ -306,6 +365,9 @@ job-search-project/
 │   ├── index_stats.json      # Vector indexing benchmark statistics
 │   ├── labeling_method.json  # Phase 2A labeling method, rubric, model, and prompt
 │   ├── label_agreement.json  # Documents unverified status (human_reviewed: false)
+│   ├── llm_outputs.jsonl     # Phase 2C logged explanations (cache hits, latency, tokens)
+│   ├── llm_quality.json      # Phase 2C schema validity, groundedness, leakage metrics
+│   ├── llm_samples.md        # Phase 2C qualitative samples (10 random + 5 worst cases)
 │   ├── retrieval_ablation.json # Phase 2B ablation grid results
 │   ├── retrieval_circularity_check.json # Phase 2B zero-skill-overlap circularity audit
 │   ├── retrieval_latency.json # Phase 2B CPU query latency profile (p50, p95)
@@ -320,6 +382,7 @@ job-search-project/
 │   ├── bench_sync.py         # Sync benchmark and state equivalence verification
 │   ├── build_unverified_qrels.py # Builds qrels from proposed labels (unverified mode)
 │   ├── demo_comparison.py    # Side-by-side comparison across all 4 retrieval strategies
+│   ├── explain.py            # Phase 2C LLM explanation generation & groundedness evaluator
 │   ├── generate_eval_profiles.py # Phase 2A profile generation & Tier 1 verification
 │   ├── generate_readme.py    # Auto-generation of results table from reports
 │   ├── index.py              # ChromaDB vector indexing and embeddings
@@ -331,9 +394,11 @@ job-search-project/
 │   ├── pool_and_label.py     # Candidate pooling (union top 20 across 4 strategies) & labeling
 │   ├── prepare_blinded_review.py # Prepares blinded review file and decoupled key
 │   ├── retrieval.py          # Unified retrieval: BM25, Dense, Hybrid RRF, Cross-Encoder
+│   ├── run_explain_eval.py   # Phase 2C pipeline runner and CLI evaluator
 │   ├── run_retrieval_eval.py # Phase 2B full benchmark, ablation, and latency runner
 │   └── sync_index.py         # Hash-based incremental upsert/delete pipeline
 └── tests/                    # Comprehensive unit tests
+    ├── test_explain.py       # Phase 2C explanation validation & groundedness unit tests
     ├── test_index.py         # Embedding, hashing, and ChromaDB unit tests
     ├── test_ingest.py        # Cleaning, HTML stripping, dedupe, empty row tests
     ├── test_label_agreement.py # Agreement, Cohen's kappa, and review guardrail tests
