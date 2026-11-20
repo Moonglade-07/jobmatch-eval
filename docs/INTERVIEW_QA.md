@@ -138,7 +138,7 @@ Autonomous tool-calling agents are prone to runaway loops, cascading retries, an
 **Empirical Performance**:
 - Across all evaluated turns in `reports/agent_eval.json`:
   - **Mean Tool Steps per Turn**: **2.14 steps** (typically 1 filter update or search followed by 1 inspection call).
-  - **Maximum Observed Steps**: Exactly 3 steps in any turn, well below the 5-step ceiling.
+  - **Maximum Observed Steps**: Exactly 3 steps in any turn (verified distribution across 28 turns: 2 turns with 1 step, 20 turns with 2 steps, 6 turns with 3 steps), well below the 5-step ceiling.
   - **Turn Latency**: Mean end-to-end turn latency was **10,828.3 ms (~10.8 s)** with a p50 of ~5.9 s, though worst-case multi-step turns with retries reached **41,697.0 ms (~41.7 s)**.
   - **Tool Call Success Rate**: **96.9%** (31/32 calls; the single failure was an intentional negative test verifying graceful error handling when querying an invalid job ID).
 
@@ -158,26 +158,26 @@ We evaluated the agent using 10 deterministic, scripted multi-turn scenarios (`t
 2. **Repeatability**: Scenarios can be re-run across model checkpoints, prompt revisions, or temperature configurations with identical pass/fail grading.
 
 **Honest Evaluation Numbers**:
-- **First-Pass Pass Rate**: **8/10 (80.0%)** on the initial run.
-  - `scenario_08` suffered a transient infrastructure API failure on Turn 2 (`Gemini API request failed after retries`) and passed on rerun, achieving a **9/10 (90.0%) behavioral pass rate**.
+- **8/10 on the first run**:
+  - Across the 10 scenarios (28 total turns), the agent achieved **8/10 (80.0%) on the first run**.
+  - `scenario_08` failed on Turn 2 due to a transient upstream API quota error (`Gemini API request failed after retries`) and passed on rerun with identical inputs, yielding a **9/10 (90.0%) pass rate on rerun**.
   - `scenario_10` suffered a genuine behavioral failure.
 - **Methodological Limitations**:
   - 10 scenarios and 28 turns represent a small, hand-crafted test suite.
-  - While it rigorously verifies boundary logic and memory state, it cannot capture the infinite diversity, typos, idioms, and conversational ambiguity of real human dialogue.
+  - While it rigorously verifies boundary logic and memory state, it cannot capture the infinite diversity, typos, idioms, and conversational ambiguity of natural human dialogue.
 
 ---
 
-### Question 9: What happened in Scenario 10 where the agent silently switched Chicago to Remote, and why did you keep the failure instead of modifying the test?
+### Question 9: What happened in Scenario 10 where the agent relaxed the location constraint to Remote without asking the user to confirm, and why did you keep the failure instead of modifying the test?
 
 **Answer:**
 `scenario_10` evaluates multi-constraint compounding across 4 turns. In this scenario, the synthetic user specifies Mid-Senior level roles in Chicago, IL, adds skill preferences, and asks for recommendations.
 
 **The Empirical Finding**:
-1. **Zero-Result Reality**: In our 3,000-job sample from LinkedIn, there happen to be zero Mid-Senior software engineering postings located in Chicago, IL.
-2. **The Autonomous Drift**:
-   - In Turns 1–3, the agent searched for Chicago postings and returned empty or sparse results.
+1. **Zero-Result Context**: In our 3,000-job sample from LinkedIn, there are zero Mid-Senior software engineering postings located in Chicago, IL. The model had noted the lack of Chicago results in earlier turns.
+2. **Constraint Relaxation**:
    - In Turn 4, the session state correctly preserved both `location: "Chicago, IL"` and `level: "Mid-Senior level"`.
-   - However, facing an empty result set, the model autonomously pivoted: instead of informing the candidate that no Chicago Mid-Senior postings existed, it passed `location="Remote"` to `search_jobs`, while Mid-Senior level was applied through session memory (returning remote mid-senior postings).
+   - However, facing an empty result set for Chicago, the model relaxed the location constraint to Remote without asking the user to confirm: it passed `location="Remote"` to `search_jobs`, while Mid-Senior level was applied through session memory (returning remote mid-senior postings).
 3. **The Programmatic Failure**:
    - The test assertion strictly required:
      `tool_arg_contains: {"location": "Chicago, IL", "level": "Mid-Senior level"}`.
@@ -185,5 +185,5 @@ We evaluated the agent using 10 deterministic, scripted multi-turn scenarios (`t
 
 **Why We Kept the Failure**:
 - Modifying test assertions to accommodate model drift is benchmark tampering.
-- The failure exposed a critical agentic failure mode: **silent constraint relaxation**. An autonomous agent should never silently modify a candidate's geographic requirement to find results without explicitly asking the candidate for permission.
+- The failure exposed a critical agentic failure mode: relaxed the location constraint to Remote without asking the user to confirm. While the model had mentioned the lack of Chicago results in earlier turns, an autonomous agent should not relax a geographic requirement without explicit user confirmation.
 - We documented this failure and inspection note honestly in `reports/agent_eval.json`, `README.md`, `DECISIONS.md`, and this interview guide.
