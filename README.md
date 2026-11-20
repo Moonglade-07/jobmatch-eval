@@ -509,32 +509,72 @@ pytest -v tests/
 
 ---
 
-## 10. Live Demonstration & Cloud Deployment
+## 10. Run locally
 
-### Application Architecture
-- **Interactive Framework**: Streamlit (`app.py`), featuring dual search and agent interfaces.
-- **Docker Container**: Small, CPU-only container (`Dockerfile`) based on `python:3.11-slim` with build-time vector indexing (`RUN python src/index.py`) from the committed 3,000-posting clean sample.
-- **Single Command Build & Run**:
-  ```bash
-  # Build self-contained Docker image (builds Chroma index inside image)
-  docker build -t jobmatch-ai .
+> [!IMPORTANT]
+> **Deployment Status**: This project is **NOT deployed** to any cloud host and has **no live URL**. All benchmarks, interactive interfaces, REST APIs, and containerized workflows run entirely locally on your machine.
 
-  # Run container on port 7860 (or 8501) with Gemini API key
-  docker run -p 7860:7860 -e GEMINI_API_KEY="your-key-here" jobmatch-ai
-  ```
+### 1. Clone & Environment Configuration
+```bash
+# Clone the repository
+git clone https://github.com/Moonglade-07/jobmatch-eval.git
+cd jobmatch-eval
 
-### Local vs Deployed Differences
-| Dimension | Local Execution | Cloud Deployed Version (Hugging Face Spaces) |
-|---|---|---|
-| **Dataset Size** | Full 3,000 clean sample postings | Full 3,000 clean sample postings (identically indexed; never silently downsampled) |
-| **Retrieval Strategies** | All 4 enabled (BM25, Dense, Hybrid RRF, Cross-Encoder) | BM25, Dense, Hybrid RRF enabled; Cross-Encoder disabled (`DISABLE_CROSS_ENCODER=1`) to conserve host memory (811 MB steady-state vs 1.1 GB+ peak) |
-| **Agent Retriever** | BM25Retriever | BM25Retriever (backed exclusively by BM25 for reasons in Decision 10) |
-| **API Quota Management** | Unlimited local executions with disk cache | Capped at 20 requests per session, 200 requests per day globally to protect free tier |
-| **API Key Security** | Loaded from local `.env` | Stored exclusively in host secret store (`st.secrets`); never exposed in UI or logs |
-| **Fallback Handling** | Heuristic fallback on API exhaustion | Automatic heuristic fallback with prominent UI warning banner |
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-### Operational Limits & Free-Host Caveats
-1. **Host Memory & Cold Starts**: Measured local cold-start is **21.3 s** (811.4 MB RSS) without cross-encoder, vs **23.4 s** (904.6 MB RSS, peaking at 1.1 GB+ during re-ranking) with cross-encoder. Disabling the cross-encoder in deployment stabilizes memory within free-tier container limits. The 3,000-posting dataset is loaded in full; it is never downsampled.
-2. **Free-Tier API Protection**: Google AI Studio free tier enforces 15 RPM and 1,500 RPD. To prevent malicious quota exhaustion by external visitors, the app enforces strict session (20 calls) and daily (200 calls) caps.
-3. **No User Claims**: This application is a technical evaluation artifact and demonstration proof-of-concept. No live user base, production traffic, or commercial usage is claimed.
+# Install pinned dependencies
+pip install -r requirements.txt
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env and set GEMINI_API_KEY (free-tier key from Google AI Studio: ai.google.dev)
+```
+
+### 2. One-Command Pipeline Execution
+To execute the entire reproducible pipeline (`ingest -> index -> sync benchmark -> retrieval eval -> LLM eval -> make README table -> test`):
+- **On Linux/macOS**: `./run_all.sh` or `make all`
+- **On Windows**: `run_all.bat`
+
+### 3. Interactive Streamlit Application
+Launch the dual-interface web application:
+```bash
+streamlit run app.py
+```
+Open `http://localhost:8501` in your browser.
+- **Search Tab**: Profile form (target role, location, seniority, skills, resume snippet), strategy selector (BM25, Dense, Hybrid RRF, Cross-Encoder), and grounded Gemini match explanations with visible fallback banners.
+- **Conversational Agent Tab**: Multi-turn job search assistant backed by `JobSearchAgent` with persistent session memory and real-time tool inspection.
+- **Local API Key Safeguards**: Built-in rate limits (20 requests per session, 200 requests per day) protect your personal Google AI Studio free-tier API key from unintended quota exhaustion or runaway loops.
+
+### 4. FastAPI REST API Service
+Launch the backend REST API:
+```bash
+uvicorn src.api:app --reload --port 8000
+```
+Interactive OpenAPI documentation is available at `http://localhost:8000/docs`.
+- `POST /search`: Ranked job retrieval with optional grounded match explanations.
+- `POST /chat`: Multi-turn conversational search turn with persistent memory.
+- `GET /health`: System health and dynamic index length check.
+
+### 5. Local Docker Container Build & Run
+Build and run the self-contained container locally on port 8501:
+```bash
+# Build self-contained Docker image (bakes Chroma index inside image at build time)
+docker build -t jobmatch-ai .
+
+# Run container locally with your Gemini API key
+docker run -p 8501:8501 -e GEMINI_API_KEY="your-key-here" jobmatch-ai
+```
+
+### 6. Local Memory & Cold-Start Measurements
+Measured locally on single-process CPU execution (AMD 12-core, Windows):
+- **Cold-Start Time**: **21.26 s** (BM25 + Dense + Hybrid RRF), or **23.36 s** with Cross-Encoder.
+- **RAM Footprint (RSS)**:
+  - BM25: 319.7 MB (+301.8 MB for tokenized corpus)
+  - Dense (ChromaDB + `all-MiniLM-L6-v2`): 811.4 MB (+491.7 MB for vector database & bi-encoder weights)
+  - Combined Pipeline (BM25 + Dense + Hybrid RRF): **811.4 MB** steady-state RAM.
+  - Cross-Encoder Re-Ranker (`ms-marco-MiniLM-L-6-v2`): 904.6 MB (+93.2 MB model weights), peaking at ~1.1 GB+ during 50-candidate cross-attention passes.
+- **Local Resource Knobs**: On memory-constrained local systems, set `DISABLE_CROSS_ENCODER=1` to disable the cross-encoder and cap RAM at ~811 MB, defaulting retrieval to Hybrid RRF.
+- **Dataset Attribution**: 3,000 clean sample postings licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Code licensed under MIT. No live user base, production traffic, or commercial usage is claimed.
 

@@ -155,37 +155,37 @@ This document records all engineering decisions, model justifications, trade-off
 
 ---
 
-## Decision 11: Streamlit Demo Application, Containerization & Cloud Deployment Architecture (Phase 3B)
+## Decision 11: Streamlit Demo Application, Containerization & Local Execution Architecture (Phase 3B)
 
-- **Context**: In Phase 3B, an interactive user-facing application (`app.py`), containerized environment (`Dockerfile`), and cloud deployment architecture are established for public demonstration and user inspection.
+- **Context**: In Phase 3B, an interactive user-facing application (`app.py`), containerized environment (`Dockerfile`), and local execution architecture are established for local demonstration and inspection. Cloud deployment (e.g. Hugging Face Spaces) was cancelled due to paid-tier Docker requirements on the user account; the project is strictly local-only and has no live URL or cloud hosting.
 - **Decision on ChromaDB Index Provisioning in Docker**:
   - **Selected Approach**: Build the dense vector index during image construction (`RUN python src/index.py`).
   - **Alternatives Considered**:
-    1. *Volume Mounting*: Loading index directory from an external host volume at runtime. Rejected for public demonstration images because it creates an operational dependency on external storage volumes and causes runtime failure if volumes are unmounted or misconfigured.
+    1. *Volume Mounting*: Loading index directory from an external host volume at runtime. Rejected because it creates an operational dependency on external storage volumes and causes runtime failure if volumes are unmounted or misconfigured.
     2. *Runtime First-Request Build*: Building index on container cold start. Rejected because building the 3,000-document index takes ~2.5 minutes on CPU, causing initial HTTP healthcheck timeouts and poor user experience.
-  - **Justification**: Baking the index from `data/jobs_clean.parquet` into the container image guarantees 100% self-contained, reproducible execution. The container launches instantaneously and satisfies orchestrator healthchecks (`/_stcore/health`) immediately.
+  - **Justification**: Baking the index from `data/jobs_clean.parquet` into the container image guarantees 100% self-contained, reproducible execution. The container launches instantaneously and satisfies healthchecks (`/_stcore/health`) immediately.
 - **CC BY-SA 4.0 Dataset Licensing Compliance**:
   - The underlying dataset is derived from LinkedIn Job Postings, licensed under [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/).
   - **Actions Taken**:
     - Raw uncleaned dataset (`data/raw_postings.csv`, 15,000+ postings) is strictly excluded via `.gitignore` and `.dockerignore`.
     - Only the cleaned, deduplicated 3,000-posting derivative sample (`data/jobs_clean.parquet`) is bundled. Under CC BY-SA 4.0 Section 3, adaptations and derivative databases may be shared provided appropriate credit is given and derivatives are shared under the same license terms.
     - Prominent attribution and license links are embedded in the application footer, `README.md`, and this ledger.
-- **Free-Host Resource Management, Memory Profiling & Cold Start Strategy**:
-  - **Empirical Memory & Cold-Start Measurements (Single Process, CPU)**:
+- **Local CPU Resource Management, Memory Profiling & Cold-Start Strategy**:
+  - **Empirical Memory & Cold-Start Measurements (Single Process, Local CPU: AMD 12-core, Windows)**:
     - *Baseline Python Runtime*: 17.9 MB RSS.
     - *BM25 Ingestion & Tokenized Corpus*: Loaded in **5.85 s**; RSS reaches **319.7 MB** (+301.8 MB).
     - *DenseRetriever (ChromaDB + all-MiniLM-L6-v2)*: Loaded in **15.41 s**; RSS reaches **811.4 MB** (+491.7 MB).
     - *Combined Pipeline without Cross-Encoder (BM25 + Dense + Hybrid RRF)*: Cold-start **21.26 s**; RSS **811.4 MB**.
     - *Cross-Encoder Re-Ranker (ms-marco-MiniLM-L-6-v2)*: Model weights load in 0.33 s; idle RSS reaches **904.6 MB** (+93.2 MB), with peak inference memory exceeding **1.1 GB+** during 50-candidate cross-attention passes.
-  - **Decision to Disable Cross-Encoder in Cloud Deployment**:
-    - On shared free cloud containers (such as Hugging Face Spaces free tier), running deep cross-encoder re-ranking under multi-user concurrency risks Out-Of-Memory (OOM) container eviction and introduces ~65 ms CPU inference overhead per query.
-    - Setting `DISABLE_CROSS_ENCODER=1` in `Dockerfile` disables cross-encoder re-ranking for cloud deployment, stabilizing steady-state memory at ~811 MB and defaulting search to Hybrid RRF with a clear user notice in the app sidebar, while leaving all 4 strategies available in unconstrained local environments.
-- **API Key Protection & Quota Safeguards**:
-  - `GEMINI_API_KEY` is loaded exclusively from host environment variables or Streamlit secrets (`st.secrets`). It is never logged, printed, or sent to client browsers.
-  - Built-in multi-tenant abuse protection:
+  - **Memory Constraint Knob (`DISABLE_CROSS_ENCODER`)**:
+    - On memory-constrained local systems or laptops with limited RAM, setting `DISABLE_CROSS_ENCODER=1` disables cross-encoder re-ranking, capping steady-state RAM at ~811 MB and defaulting search to Hybrid RRF with a clear user notice in the app sidebar, while leaving all 4 strategies available when unconstrained.
+- **API Key Protection & Local Quota Safeguards**:
+  - `GEMINI_API_KEY` is loaded exclusively from local environment variables (`.env`). It is never logged, printed, or sent to client browsers.
+  - Built-in local abuse protection safeguards the developer's personal API key against runaway loops or accidental overuse:
     - **Per-Session Cap**: Maximum 20 requests per user session.
-    - **Daily Global Cap**: Maximum 200 requests per day across all sessions, preventing malicious exhaustion of free-tier quotas (1,500 RPD).
+    - **Daily Safety Cap**: Maximum 200 requests per day across sessions, preventing accidental exhaustion of Google AI Studio free-tier quotas (1,500 RPD).
     - When quota is reached, the application gracefully degrades to rule-based heuristic extraction with a clear UI banner.
+- **Deployment Status**: Strictly local execution. Not deployed to any cloud host; no live URL exists.
 
 
 
