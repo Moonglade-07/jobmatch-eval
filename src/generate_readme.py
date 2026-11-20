@@ -12,8 +12,11 @@ MANDATORY PROTOCOL:
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 DATA_STATS_PATH = Path("reports/data_stats.json")
@@ -916,9 +919,10 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 13. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
 """
 
-    with open(RESULTS_PATH, "w", encoding="utf-8") as f:
-        f.write(results_content)
-    print(f"Successfully generated {RESULTS_PATH} from reports/")
+def update_readme() -> None:
+    """Delegate to make_readme_table for synchronized marker-based table injection."""
+    from src.make_readme_table import update_readme_and_results
+    update_readme_and_results()
 
 
 if __name__ == "__main__":
