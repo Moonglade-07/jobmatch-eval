@@ -33,6 +33,7 @@ chroma*/
 data/*
 !data/eval/
 !data/eval/**
+data/cache/
 data/eval/review_key.csv
 review_key.csv
 *.parquet

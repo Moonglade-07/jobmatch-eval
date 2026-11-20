@@ -110,15 +110,24 @@ This document records all engineering decisions, model justifications, trade-off
 
 ---
 
-## Decision 8: Candidate Pooling, Programmatic Tier 1 Guardrail, and Graded Labeling (Phase 2A)
+## Decision 9: LLM Explanation Model & Groundedness Evaluation Architecture (Phase 2C)
 
-- **Context**: Evaluating retrieval systems requires an unbiased evaluation dataset. If test pairs are selected from only one retrieval strategy (e.g. dense vector search), evaluation metrics systematically favor that retriever (pooling bias). Furthermore, test candidate profiles must be sufficiently covered in the underlying index to prevent evaluation on degenerate empty pools.
-- **Decision**:
-  1. *Programmatic Tier 1 Guardrail*: Before finalizing any candidate profile, a programmatic check enforces that at least 50 postings in the 3,000 index pass the strict Tier 1 filter (`preferred_location` and `seniority`). All 30 authored profiles passed this check (ranging from 92 to 329 matching postings).
-  2. *Synthetic Profile Authorship*: All 30 candidate profiles in `data/eval/profiles.json` are 100% hand-authored synthetic inputs (never scraped or copied from the real job postings), representing diverse tech disciplines, standard entry/mid-senior tiers, 2 non-standard seniority edges (1 Director, 1 Internship), and 4 hard cases (2 career changers, 2 vague profiles).
-  3. *Unbiased Candidate Pooling*: For every profile, the top 20 candidates from all 4 retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) are pooled via set union, yielding 1,037 unique `(profile, job)` pairs.
-  4. *Graded 3-Point Rubric (`docs/LABELING.md`)*: Graded labels `{0: Irrelevant, 1: Partially Relevant, 2: Strongly Relevant}` are proposed deterministically based on four core dimensions: role alignment, skill overlap, seniority compatibility, and location feasibility.
-  5. *Quality Control & Blinded Review Preparation*: The 260 random must-review pairs and all proposed label-2 pairs (277 total, union de-duplicated) are exported in blinded form in `labels_to_review.csv` (with empty `my_label` and shuffled within profile to blind proposals). Inter-rater agreement metrics (disagreement rate, Cohen's weighted kappa, and confusion matrix) will be computed only upon return of the human-annotated `labels_reviewed.csv`.
+- **Context**: In Phase 2C, candidate job matches are explained using an LLM to generate structured summaries: matched skills (which must be grounded in the posting text), missing skills, and a one-sentence rationale. The evaluation requires measuring schema validity, literal groundedness, profile support, and contradiction leakage without relying on an LLM judge.
+- **Model Selection**:
+  - **Date Checked**: 2026-11-20
+  - **Official Docs URL**: `https://ai.google.dev/gemini-api/docs/models`
+  - **Model**: `gemini-3.1-flash-lite` (fallback: `gemini-3.5-flash-lite`, `gemini-3.8-flash`)
+  - **Justification**:
+    - Querying the official Google AI Studio API (`/v1beta/models`) confirms that older models (`gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`) have been sunset/deprecated for new API users.
+    - `gemini-3.1-flash-lite` delivers sub-second p50 execution (~970 ms) and native structured JSON output via `application/json` response MIME type.
+    - Fits within free-tier rate limits (15 RPM, 1,500 RPD) with deterministic exponential backoff and persistent disk caching.
+- **Groundedness Verification Methodology (NO LLM Judge)**:
+  - Groundedness is computed strictly programmatically against the raw job text (`title` + `description`).
+  - **Boundary-Safe Matching**: Uses regex pattern `(?<![\w\+\#]){escaped}(?![\w\+\#])` with `re.IGNORECASE` to accommodate technical symbols (`C++`, `C#`, `.NET`) while preventing substring false positives (`C` in `Cloud`, `Java` in `JavaScript`).
+  - **Strict Groundedness**: Exact case-sensitive substring matching with no normalization.
+  - **Contradiction Leakage**: Quantifies whether skills listed under `missing_skills` actually appear in both the job description and the candidate profile.
+  - **Cluster Bootstrap CIs**: Bootstrap resampling ($N=1,000$ iterations, seed 42) is performed by clustering across profiles (not independent calls) to account for intra-profile correlation.
+
 
 
 
