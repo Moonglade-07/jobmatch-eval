@@ -321,6 +321,7 @@ class DenseRetriever(BaseRetriever):
         """
         query_text = build_query_text(profile)
 
+        import torch
         with torch.inference_mode():
             query_embedding = self.model.encode(
                 query_text,
