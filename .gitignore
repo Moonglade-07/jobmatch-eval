@@ -29,14 +29,17 @@ chroma*/
 *.sqlite3
 *.duckdb
 
-# Data & Large assets (raw postings & parquet indexes excluded; eval metadata tracked)
+# Data & Large assets (raw postings excluded; clean sample & eval metadata tracked)
 data/*
+!data/jobs_clean.parquet
 !data/eval/
 !data/eval/**
 data/cache/
+data/sessions/
 data/eval/review_key.csv
 review_key.csv
 *.parquet
+!data/jobs_clean.parquet
 *.arrow
 *.bin
 
