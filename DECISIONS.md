@@ -116,6 +116,7 @@ This document records all engineering decisions, model justifications, trade-off
 - **Model Selection**:
   - **Date Checked**: 2026-11-20
   - **Official Docs URL**: `https://ai.google.dev/gemini-api/docs/models`
+  - **Pricing Docs URL**: `https://ai.google.dev/pricing` (Checked: 2026-11-20: Free tier $0.00 / 1M tokens within rate limits of 15 RPM, 1,500 RPD for Gemini 3.1 Flash-Lite)
   - **Model**: `gemini-3.1-flash-lite` (fallback: `gemini-3.5-flash-lite`, `gemini-3.8-flash`)
   - **Justification**:
     - Querying the official Google AI Studio API (`/v1beta/models`) confirms that older models (`gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`) have been sunset/deprecated for new API users.

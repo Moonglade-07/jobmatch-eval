@@ -1,53 +1,74 @@
-# Experimental Results & Retrieval Evaluation Benchmark
+# Experimental Results & Provenance Ledger
 
-An empirical benchmark comparing retrieval architectures, candidate pooling, personalization strategies, and relevance evaluation for matching job seekers against real job postings.
+This document lists every measured number across all experimental phases,
+accredited with its exact producing command and source JSON artifact in `reports/`.
 
----
+## Metric Provenance Registry
 
-## 1. Retrieval Strategies Benchmark Overview
-
-Four retrieval strategies are evaluated across 30 test candidate profiles spanning diverse engineering domains, seniority tiers, and edge cases (such as career changers and vague profiles):
-
-1. **BM25 Only (`BM25Retriever`)**: Lexical keyword search using BM25Okapi with technical tokenization (`c++`, `c#`, `.net`, `python-3`).
-2. **Dense Only (`DenseRetriever`)**: Semantic dense vector search in ChromaDB using `all-MiniLM-L6-v2` embeddings and HNSW cosine distance.
-3. **Hybrid RRF (`HybridRRFRetriever`)**: Reciprocal Rank Fusion ($k_{rrf}=60$) combining reciprocal ranks from BM25 and Dense streams.
-4. **Hybrid + Cross-Encoder (`CrossEncoderRetriever`)**: Two-stage pipeline taking the top 50 candidates from Hybrid RRF and re-ranking via `cross-encoder/ms-marco-MiniLM-L-6-v2` cross-attention scores.
+| Pipeline Stage | Primary Producing Command | Source Report File | Measured Entities |
+|---|---|---|---|
+| **Phase 1A: Ingestion & Cleaning** | `python src/ingest.py` | `reports/data_stats.json` | Row counts, text length statistics, seniority distribution |
+| **Phase 1A: Dense Vector Indexing** | `python src/index.py` | `reports/index_stats.json` | Vector dimension, indexed count, build duration, throughput |
+| **Phase 1B: Incremental Sync Benchmark** | `python src/bench_sync.py` | `reports/sync_benchmark.json` | Full re-index latency, sync latency, speedup factor (12.98x) |
+| **Phase 2A: Pooling & Label Proposals** | `python src/pool_and_label.py` | `reports/labeling_method.json` | 1,037 candidate pairs, 3-tier label counts (757/255/25) |
+| **Phase 2A: Relevance Agreement Guard** | `python src/build_unverified_qrels.py` | `reports/label_agreement.json` | Unverified status, human verified count (0) |
+| **Phase 2B: Main Pipeline Retrieval** | `python src/run_retrieval_eval.py` | `reports/retrieval_metrics_main.json` | P@5, Recall@10, MRR, nDCG@10, bootstrap 95% CIs |
+| **Phase 2B: Pure Retrieval Setting** | `python src/run_retrieval_eval.py` | `reports/retrieval_metrics_pure.json` | Unconstrained retrieval metrics (76%-85% unjudged rate) |
+| **Phase 2B: Paired Statistical Comparisons** | `python src/run_retrieval_eval.py` | `reports/retrieval_paired_comparisons.json` | Mean paired differences and 95% bootstrap CIs |
+| **Phase 2B: CPU Latency Profile** | `python src/run_retrieval_eval.py` | `reports/retrieval_latency.json` | p50, p95, mean latency, one-off index build timings |
+| **Phase 2B: Ablation Grid** | `python src/run_retrieval_eval.py` | `reports/retrieval_ablation.json` | Filter and skill boost ablation combinations |
+| **Phase 2B: Circularity Subset Audit** | `python src/run_retrieval_eval.py` | `reports/retrieval_circularity_check.json` | Zero-skill-overlap evaluation (51 pairs, 17 profiles) |
+| **Phase 2C: LLM Explanation Quality** | `python src/run_explain_eval.py --full` | `reports/llm_quality.json` | Schema validity, baseline & adjusted groundedness, leakage |
 
 ---
 
 ## 2. Ingestion & Indexing Pipeline Benchmarks
 
 ### Ingestion & Cleaning Metrics
+*(Data source: `reports/data_stats.json` | Command: `python src/ingest.py`)*
+
+| Stage | Metric | Count / Value |
+|---|---|---|
+| Raw Pool | Downloaded Postings | 10,000 |
+| Cleaned Pool | Valid Postings After Cleaning & Deduplication | 8,052 |
+| Sampled Output | Final Sampled Dataset (`seed=42`) | 3,000 |
+| Text Metric | Average Description Characters | 3637.38 chars |
+| Text Metric | Average Description Words | 505.49 words |
+| Text Metric | Median Words | 457 words |
+
+### Experience Level Distribution
 *(Data source: `reports/data_stats.json`)*
 
+| Seniority Tier | Count | Percentage |
+|---|---|---|
+| Mid-Senior level | 1027 | 34.23% |
+| Entry level | 984 | 32.80% |
+| Not Specified | 746 | 24.87% |
+| Director | 126 | 4.20% |
+| Internship | 63 | 2.10% |
+| Executive | 54 | 1.80% |
+
+### Measured Indexing Performance
+*(Data source: `reports/index_stats.json` | Command: `python src/index.py`)*
+
 | Metric | Measured Value |
 |---|---|
-| Raw Downloaded Postings | 3,365 |
-| Postings After Cleaning & Deduplication | 3,000 |
-| Final Sampled Postings (`seed=42`) | 3,000 |
-| Average Description Length | 1,463.3 characters (219.8 words) |
-| Median Description Words | 196 words |
-
-### Dense Vector Indexing Benchmark
-*(Data source: `reports/index_stats.json`)*
-
-| Metric | Measured Value |
-|---|---|
-| Vector Database | ChromaDB (HNSW Cosine) |
+| Vector Store | ChromaDB (HNSW Cosine) |
 | Embedding Model | `sentence-transformers/all-MiniLM-L6-v2` |
 | Embedding Dimension | 384 |
-| Total Indexed Postings | 3,000 |
-| Index Build Time | 30.15 seconds |
-| Indexing Throughput | 99.49 docs/sec |
+| Total Documents Indexed | 3,000 |
+| Index Build Time | 159.59 s |
+| Indexing Throughput | 18.8 docs/sec |
+| Metadata Fields | `job_id, title, company, location, experience_level, content_hash` |
 
 ### Incremental Synchronization vs Full Re-Index (Phase 1B)
-*(Data source: `reports/sync_benchmark.json` | Simulated mutation: 5% modified, 2% added, 2% deleted)*
+*(Data source: `reports/sync_benchmark.json` | Command: `python src/bench_sync.py` | 5% modified, 2% added, 2% deleted)*
 
 | Strategy | Mean Latency (3 runs) | Latency Std Dev | Effective Throughput |
 |---|---|---|---|
-| Full Re-Index (from scratch) | 30.82 s | 0.45 s | 97.3 docs/sec |
-| Hash-Based Incremental Sync | **3.88 s** | 0.12 s | **773.2 docs/sec** |
-| **Measured Speedup** | **7.94x** | — | — |
+| Full Re-Index (from scratch) | 159.636 s | 8.408 s | 18.79 docs/sec |
+| Hash-Based Incremental Sync | **12.295 s** | 0.973 s | **244.0 docs/sec** |
+| **Measured Speedup** | **12.98x** | — | — |
 
 > [!NOTE]
 > **Scope of Incremental Synchronization**: This benchmark measures incremental synchronization of the **ChromaDB dense vector index** specifically, where unchanged documents bypass embedding inference via SHA-256 content hashes. Because `rank_bm25` does not support incremental updates, the BM25 lexical index and tokenized corpus must be rebuilt in full (~6.0 s) whenever postings are added, modified, or removed. The production pipeline is therefore hybrid: dense vector updates are incremental, while lexical index updates require a complete rebuild.
@@ -69,9 +90,7 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 | **2** | Strongly Relevant | 25 | 2.41% |
 | **Total** | Pooled Candidate Pool | 1,037 | 100.00% |
 
----
-
-## 4. Relevance Evaluation Status (`data/eval/qrels.json`)
+### Relevance Evaluation Status (`data/eval/qrels.json`)
 *Evaluated against model-proposed, unverified relevance labels*
 
 | Property | Status / Configuration | Reference Artifact |
@@ -79,28 +98,13 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 | Relevance Source | **100% Rule-Based Proposed Labels** (`label_source: model_proposed`) | [`docs/LABELING.md`](docs/LABELING.md) |
 | Total Judgments | 1,037 pairs across 30 candidate profiles | `data/eval/qrels.json` |
 | Human Review Count | **0 pairs** (`human_reviewed: false`) | `reports/label_agreement.json` |
-| Labeling Model / Engine | Deterministic Rubric Alignment (`jobmatch-rubric-v1`) | `reports/labeling_method.json` |
+| Labeling Model / Engine | Deterministic Rubric Alignment (`jobmatch-rubric-v1 (Deterministic rule-based heuristic alignment)`) | `reports/labeling_method.json` |
 | Quality Control Package | Blinded 277 candidate pairs intact | [`labels_to_review.csv`](labels_to_review.csv) |
 | Review Documentation | Standalone rubric and candidate profile guide | [`docs/REVIEW_GUIDE.md`](docs/REVIEW_GUIDE.md) |
 
 ---
 
-## 5. Retrieval-Independent Lexical Overlap Analysis
-
-Because the heuristic labeling rubric incorporates technical skill regex and keyword matching, a retrieval-independent analysis was performed to measure the exact degree of lexical skill overlap across all proposed relevance tiers:
-
-*Evaluated against model-proposed, unverified relevance labels*
-
-| Relevance Grade | Total Candidates | Zero Skill Overlap | $\ge 1$ Skill Overlap | % with Zero Skill Overlap |
-|---|---|---|---|---|
-| **Label 0 (Irrelevant)** | 757 | 466 | 291 | 61.56% |
-| **Label 1 (Partially Relevant)** | 255 | 51 | 204 | 20.00% |
-| **Label 2 (Strongly Relevant)** | 25 | 0 | 25 | 0.00% |
-| **Relevant Candidates (1 or 2)** | **280** | **51** | **229** | **18.21%** |
-
----
-
-## Phase 2B: Retrieval Evaluation & Benchmarking
+## 4. Phase 2B: Retrieval Evaluation & Benchmarking
 
 ### Benchmark Scope & Methodology
 - **30 Candidate Profiles**: Hand-authored synthetic profiles spanning Software Engineering, Data/ML, DevOps, Product Management, QA, and Security.
@@ -171,12 +175,11 @@ Because the heuristic labeling rubric incorporates technical skill regex and key
 | **Dense Only** | 74.24 | 91.32 | 75.06 | Query embedding (`all-MiniLM-L6-v2`) + ChromaDB HNSW |
 | **BM25 Only** | 136.24 | 168.32 | 146.96 | Lexical BM25Okapi scoring over full corpus |
 | **Hybrid RRF ($k=60$)** | 181.46 | 206.44 | 177.55 | BM25 + Dense retrieval + RRF fusion |
-| **Cross-Encoder: Step 1 (Retrieval)** | 157.2 | 179.94 | 166.46 | Hybrid RRF candidate pool retrieval (top 50) |
-| **Cross-Encoder: Step 2 (Neural Scoring)** | 2337.29 | 2622.19 | 2371.4 | CPU Transformer forward pass re-ranking 50 pairs |
+| **Cross-Encoder: Step 1 (Retrieval)** | 157.20 | 179.94 | 166.46 | Hybrid RRF candidate pool retrieval (top 50) |
+| **Cross-Encoder: Step 2 (Neural Scoring)** | 2337.29 | 2622.19 | 2371.40 | CPU Transformer forward pass re-ranking 50 pairs |
 | **Cross-Encoder: End-to-End Pipeline** | **2479.28** | **2813.02** | **2537.85** | Total two-stage retrieval and neural re-ranking |
 
 *One-off startup / index build times (outside timed queries): BM25 Index Build = 5992.1 ms, Dense Init = 877.8 ms, Cross-Encoder Load = 242.5 ms.*
-
 
 ### 5. Ablation Study: Filter, Boost, and Weight Tuning
 *Evaluated against model-proposed, unverified relevance labels*
@@ -203,11 +206,11 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 | **Hybrid + Cross-Encoder** | 0.0467 [0.01, 0.08] | 0.2552 [0.12, 0.42] | 0.3077 [0.13, 0.51] | 0.1098 [0.05, 0.18] |
 
 > [!NOTE]
-> **Indicative Finding Only (51 pairs, 17 profiles)**: Evaluated on the subset of 51 relevant candidate postings across 17 profiles with zero literal skill matches (13 profiles have zero relevant items in this slice and are excluded from Recall/MRR means). Dense retrieval achieves Recall@10 of 0.3931 [0.2333, 0.5687] vs BM25 0.2588 [0.1245, 0.4265] and MRR of 0.3437 [0.1546, 0.5314] vs BM25 0.1751 [0.0727, 0.3139]. This indicates that dense vector retrieval can surface conceptually relevant postings when keyword markers are absent, but the small sample size and wide confidence intervals mean this is indicative only.
+> **Indicative Finding Only (51 pairs, 17 profiles)**: Evaluated on the subset of 51 relevant candidate postings across 17 profiles with zero literal skill matches (13 profiles have zero relevant items in this slice and are excluded from Recall/MRR means). Dense retrieval achieves Recall@10 of 0.3931 [0.23, 0.57] vs BM25 0.2588 [0.12, 0.43] and MRR of 0.3437 [0.15, 0.53] vs BM25 0.1751 [0.07, 0.31]. This indicates that dense vector retrieval can surface conceptually relevant postings when keyword markers are absent, but the small sample size and wide confidence intervals mean this is indicative only.
 
 ---
 
-## Phase 2C: LLM Explanation Quality & Groundedness Evaluation
+## 5. Phase 2C: LLM Explanation Quality & Groundedness Evaluation
 
 ### Architecture & Protocol
 - **Objective**: Explain top-5 job matches from the best retrieval strategy (BM25 Only, nDCG@10 = 0.6147) for each candidate profile without relying on an LLM judge.
@@ -236,7 +239,8 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 
 | Metric | Pooled Rate (Skills) | Macro Profile Average | 95% Cluster Bootstrap CI | Definition / Verification Scope |
 |---|---|---|---|---|
-| **Main Groundedness (Boundary Regex)** | **91.70%** (254/277) | **91.79%** | [0.88, 0.96] | Boundary-safe regex `(?<![\w\+\#]){skill}(?![\w\+\#])` with symbol support (`C++`, `C#`, `.NET`) |
+| **Main Groundedness (Baseline)** | **91.70%** (254/277) | **91.79%** | [0.88, 0.96] | Boundary-safe regex `(?<![\w\+\#]){skill}(?![\w\+\#])` with symbol support (`C++`, `C#`, `.NET`) |
+| **Main Groundedness (Adjusted for Joined Words)** | **94.22%** (261/277) | **94.31%** | [0.90, 0.98] | Recovers 7 skills joined without whitespace in raw HTML postings (e.g. `JavaScriptUnderstanding`, `TableauExperience`) |
 | **Strict Groundedness (Exact Substring)** | **79.42%** (220/277) | **77.58%** | [0.69, 0.85] | Case-sensitive literal substring match without normalization |
 | **Profile Support Rate** | **92.42%** | **93.06%** | [0.89, 0.97] | Claimed matched skills verified to exist in candidate profile |
 | **Contradiction Leakage Rate** | **0.31%** (4/1278) | **0.36%** | [0.00, 0.01] | Self-contradiction check: skills claimed missing that appear in both job text and candidate profile |
@@ -259,28 +263,3 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 
 ### 4. Qualitative Audit & Sample Explanations
 A full qualitative inspection containing 10 randomly sampled explanations (seed = 42) and the 5 worst cases by literal groundedness is documented in [`reports/llm_samples.md`](reports/llm_samples.md).
-
----
-
-## 7. Limitations
-
-1. **Model-Proposed, Unverified Relevance Labels**: All 1,037 relevance labels in `data/eval/qrels.json` are rule-based proposed labels (`label_source: model_proposed`), with zero human evaluations conducted (`human_reviewed: false`). Evaluated retrieval metrics benchmark retriever alignment against rule-based heuristic criteria rather than human preference.
-2. **Lexical Overlap Bias in Heuristic Rubric**: Because the heuristic proposal rubric incorporates technical skill regex and keyword matching, it inherently favors lexical retrieval methods (BM25 and hybrid combinations) over pure semantic vector retrieval. High BM25 scores reflect shared lexical signals with the rubric, not evidence that BM25 is the better retriever in absolute terms.
-3. **Retrieval-Independent Check is Indicative Only (51 pairs, 17 profiles)**: When evaluated on the 51 relevant candidates with zero literal skill matches, dense retrieval achieves higher recall and MRR than BM25, indicating semantic capability when keywords are missing. However, because only 17 profiles have any relevant documents in this slice, confidence intervals are wide and the result is indicative only.
-4. **Niche Role Coverage Gap (< 3 Relevant Docs)**: In this 3,000-posting LinkedIn sample, niche technical roles are poorly covered under strict location and seniority criteria. Exactly 6 of the 30 profiles have fewer than 3 relevant documents:
-   - `prof_01` (Machine Learning Engineer, Remote): 1 relevant doc
-   - `prof_07` (Mobile Developer, San Francisco, CA): 0 relevant docs
-   - `prof_09` (Database Administrator, Houston, TX): 2 relevant docs
-   - `prof_11` (QA Automation Engineer, Denver, CO): 2 relevant docs
-   - `prof_19` (NLP Engineer, Remote): 1 relevant doc
-   - `prof_23` (Computer Vision Engineer, Remote): 0 relevant docs
-   Broad roles (e.g. Junior Data Analyst with 32 relevant docs, Junior Software Developer with 21) have strong coverage, while specialized disciplines (mobile development, computer vision, NLP) have sparse representation in this dataset slice.
-5. **Ranking Inside Pre-Filtered Pool, Not Full-Index Retrieval**: Reported retrieval metrics evaluate ranking within candidate pools constrained by location and seniority filters (with fallback), rather than unconstrained retrieval over all 3,000 raw postings.
-6. **Skill Boost Gains Inflated by Label/Signal Overlap**: Because the rule-based labeling rubric (`jobmatch-rubric-v1`) rewards skill regex matches, applying the skill boost directly reinforces the labeling criteria, artificially inflating observed ranking improvements.
-7. **BM25 Full Rebuild vs Incremental Dense Indexing**: Latency benchmarks are measured warm in a single process on CPU with all caches pre-built. While ChromaDB supports hash-based incremental updates, `rank_bm25` has no incremental update mechanism; any mutation to the dataset requires rebuilding the BM25 index and tokenized corpus in full (~6.0 s).
-8. **Synthetic Test Profiles**: While all 3,000 job postings in `data/jobs_clean.parquet` are real LinkedIn postings, the 30 candidate profiles in `data/eval/profiles.json` are hand-authored synthetic benchmarks.
-9. **Literal Groundedness vs Contextual Correctness (Phase 2C)**: Groundedness evaluates literal presence in job descriptions via boundary-safe regex, not semantic suitability or contextual sentiment. A skill mentioned in an exclusionary clause would still register as literally grounded.
-10. **Contradiction Leakage Scope (Phase 2C)**: Contradiction leakage measures self-contradiction only (skills claimed as missing that appear in both the job text and candidate profile). It does not assess the general completeness or relevance of the `missing_skills` list from an employer standpoint.
-11. **Prompt and Model Version Specificity (Phase 2C)**: LLM explanation outputs, schema validity, and groundedness metrics reflect `gemini-3.1-flash-lite` using prompt `explain-v1.0`; alternative models or prompt iterations will produce different performance profiles.
-12. **Programmatic Verification Without LLM or Human Judge (Phase 2C)**: All explanation quality signals were audited via deterministic string and regex checks; no qualitative human evaluation or secondary LLM judge was utilized.
-13. **Offline Benchmark Scope**: Evaluated in an offline batch setting without live user interaction, feedback loops, or click-through session tracking.
