@@ -116,12 +116,12 @@ This document records all engineering decisions, model justifications, trade-off
 - **Model Selection**:
   - **Date Checked**: 2026-11-20
   - **Official Docs URL**: `https://ai.google.dev/gemini-api/docs/models`
-  - **Pricing Docs URL**: `https://ai.google.dev/pricing` (Checked: 2026-11-20: Free tier $0.00 / 1M tokens within rate limits of 15 RPM, 1,500 RPD for Gemini 3.1 Flash-Lite)
+  - **Pricing Docs URL**: `https://ai.google.dev/pricing` (Checked: 2026-11-20: Free tier available for Gemini Flash-Lite with rate-controlled pacing; live project quotas visible in Google AI Studio console)
   - **Model**: `gemini-3.1-flash-lite` (fallback: `gemini-3.5-flash-lite`, `gemini-3.8-flash`)
   - **Justification**:
     - Querying the official Google AI Studio API (`/v1beta/models`) confirms that older models (`gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`) have been sunset/deprecated for new API users.
     - `gemini-3.1-flash-lite` delivers sub-second p50 execution (~970 ms) and native structured JSON output via `application/json` response MIME type.
-    - Fits within free-tier rate limits (15 RPM, 1,500 RPD) with deterministic exponential backoff and persistent disk caching.
+    - Operates within free-tier project rate limits with deterministic exponential backoff and persistent disk caching.
 - **Groundedness Verification Methodology (NO LLM Judge)**:
   - Groundedness is computed strictly programmatically against the raw job text (`title` + `description`).
   - **Boundary-Safe Matching**: Uses regex pattern `(?<![\w\+\#]){escaped}(?![\w\+\#])` with `re.IGNORECASE` to accommodate technical symbols (`C++`, `C#`, `.NET`) while preventing substring false positives (`C` in `Cloud`, `Java` in `JavaScript`).

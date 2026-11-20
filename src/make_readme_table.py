@@ -332,7 +332,7 @@ def generate_results_markdown(
 |---|---|---|---|
 | Full Re-Index (from scratch) | {sync_full_mean:.3f} s | {sync_full_std:.3f} s | {sync_full_tput:.2f} docs/sec |
 | Hash-Based Incremental Sync | **{sync_inc_mean:.3f} s** | {sync_inc_std:.3f} s | **{sync_inc_tput:.1f} docs/sec** |
-| **Measured Speedup** | **{sync_speedup:.2f}x** | — | — |
+| **Measured Speedup (Dense Index Only)** | **{sync_speedup:.2f}x** (13x faster dense-index sync: 5% modified, 2% added, 2% deleted) | — | — |
 
 > [!NOTE]
 > **Scope of Incremental Synchronization**: This benchmark measures incremental synchronization of the **ChromaDB dense vector index** specifically, where unchanged documents bypass embedding inference via SHA-256 content hashes. Because `rank_bm25` does not support incremental updates, the BM25 lexical index and tokenized corpus must be rebuilt in full (~6.0 s) whenever postings are added, modified, or removed. The production pipeline is therefore hybrid: dense vector updates are incremental, while lexical index updates require a complete rebuild.

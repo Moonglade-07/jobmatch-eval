@@ -82,7 +82,7 @@ def build_unverified_qrels(
     qrels_path.parent.mkdir(parents=True, exist_ok=True)
     with open(qrels_path, "w", encoding="utf-8") as f:
         json.dump(qrels_payload, f, indent=2)
-    print(f"Successfully generated {qrels_path} (100% model-proposed, 0 human-verified).")
+    print(f"Successfully generated {qrels_path} (100% model-proposed, 0 human-reviewed).")
 
     # 2. Write reports/label_agreement.json containing ONLY required fields
     report_payload = {

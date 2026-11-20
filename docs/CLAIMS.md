@@ -8,7 +8,7 @@ Every claim is cross-referenced with exact files in `reports/` and documented ex
 
 ## 1. Ingestion & Index Synchronization Claims
 
-### Claim 1.1: Hash-based incremental synchronization delivers substantial speedup over full re-indexing for dense vectors.
+### Claim 1.1: Hash-based incremental synchronization delivers 13x faster dense-index sync (5% modified, 2% added, 2% deleted) over full re-indexing for dense vectors.
 - **Status**: **SUPPORTED BY EMPIRICAL EVIDENCE**
 - **Empirical Evidence**:
   - In a simulated 9% mutation scenario (5% modified, 2% added, 2% deleted) across 3,000 postings, `sync_index.py` executed in **12.295 s** mean latency vs **159.636 s** for full scratch re-indexing (`reports/sync_benchmark.json`).

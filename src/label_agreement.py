@@ -40,7 +40,7 @@ def compute_weighted_cohen_kappa(
     """Compute Cohen's weighted kappa for ordinal classification.
 
     Args:
-        y_true: Human reviewer ground truth ratings {0, 1, 2}.
+        y_true: Human reviewer evaluation ratings {0, 1, 2}.
         y_pred: Model or heuristic proposed ratings {0, 1, 2}.
         weights: Weighting scheme ('quadratic' or 'linear').
 
@@ -370,7 +370,7 @@ def evaluate_label_agreement(
     print("\n" + "-" * 75)
     print("FINAL QRELS PROVENANCE & PER-PROFILE SUMMARY")
     print("-" * 75)
-    print(f"Human-Verified Judgments: {source_counts['human_verified']} ({report_payload['provenance_counts']['human_verified_percentage']}%)")
+    print(f"Human-Reviewed Judgments: {source_counts['human_verified']} ({report_payload['provenance_counts']['human_verified_percentage']}%)")
     print(f"Model-Proposed Judgments: {source_counts['model_proposed']} ({report_payload['provenance_counts']['model_proposed_percentage']}%)")
     print(f"Profiles with < 3 Relevant Docs (label >= 1): {len(flagged_profiles_under_3_relevant)}")
     if flagged_profiles_under_3_relevant:

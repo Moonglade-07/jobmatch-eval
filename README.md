@@ -86,7 +86,7 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
 |---|---|---|---|
 | Full Re-Index (from scratch) | 159.636 s | 8.408 s | 18.79 docs/sec |
 | Hash-Based Incremental Sync | **12.295 s** | 0.973 s | **244.0 docs/sec** |
-| **Measured Speedup** | **12.98x** | — | — |
+| **Measured Speedup (Dense Index Only)** | **12.98x** (13x faster dense-index sync: 5% modified, 2% added, 2% deleted) | — | — |
 
 > [!NOTE]
 > **Scope of Incremental Synchronization**: This benchmark measures incremental synchronization of the **ChromaDB dense vector index** specifically, where unchanged documents bypass embedding inference via SHA-256 content hashes. Because `rank_bm25` does not support incremental updates, the BM25 lexical index and tokenized corpus must be rebuilt in full (~6.0 s) whenever postings are added, modified, or removed. The production pipeline is therefore hybrid: dense vector updates are incremental, while lexical index updates require a complete rebuild.
@@ -288,7 +288,7 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 ## 6. Analysis Summary
 
 ### Ingestion & Incremental Synchronization (Phase 1A & 1B)
-- **Dense Vector Sync Speedup**: Hash-based incremental synchronization of the ChromaDB dense vector index achieved a **12.98x speedup** (12.30 s vs 159.64 s full re-index) under a 9% mutation scenario (5% modified, 2% added, 2% deleted), while preserving 100% state equivalence (0 hash discrepancies).
+- **Dense Vector Sync Speedup**: Hash-based incremental synchronization of the ChromaDB dense vector index achieved **13x faster dense-index sync (5% modified, 2% added, 2% deleted)** (12.30 s vs 159.64 s full re-index; 12.98x), while preserving 100% state equivalence (0 hash discrepancies). This applies exclusively to the dense vector store; the lexical BM25 index must be rebuilt in full (~6.0 s) on any change.
 - **BM25 Lexical Index Asymmetry**: Because `rank_bm25` lacks an incremental update API, the lexical index and tokenized corpus must be rebuilt in full (~6.0 s) on every data mutation. The operational system is hybrid: dense vectors update incrementally, while lexical indices require complete rebuilds.
 
 ### Retrieval Performance & Signal Alignment (Phase 2B)
@@ -328,7 +328,7 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 10. **Contradiction Leakage Scope (Phase 2C)**: Contradiction leakage measures internal self-contradiction only (skills claimed as missing that appear in both the job text and candidate profile). It does not assess the general completeness or relevance of the `missing_skills` list from an employer standpoint.
 11. **Prompt and Model Version Specificity (Phase 2C)**: LLM explanation outputs, schema validity, and groundedness metrics reflect `gemini-3.1-flash-lite` using prompt `explain-v1.0`; alternative models or prompt iterations will produce different performance profiles.
 12. **Programmatic Verification Without LLM or Human Judge (Phase 2C)**: All explanation quality signals were audited via deterministic string and regex checks; no qualitative human evaluation or secondary LLM judge was utilized.
-13. **Free-Tier API Rate Limits & Quota Constraints (Phase 2C)**: Production execution relies on Google AI Studio free-tier quotas (15 RPM, 1,500 RPD checked 2026-11-20 at [https://ai.google.dev/pricing](https://ai.google.dev/pricing)). Sustained high-throughput inference requires persistent on-disk caching (`data/cache/explanations/`) or a paid tier upgrade.
+13. **Free-Tier Rate Limits & Quotas (Phase 2C)**: High-throughput execution without billing requires rate-controlled pacing and persistent disk caching (`data/cache/explanations/`) to prevent rate-limit exhaustion under Google AI Studio project quotas.
 
 ---
 
