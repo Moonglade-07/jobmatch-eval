@@ -1,0 +1,447 @@
+{
+  "version": "1.0",
+  "description": "10 scripted multi-turn conversation scenarios for programmatic agent evaluation (Phase 3A).",
+  "scenarios": [
+    {
+      "id": "scenario_01",
+      "name": "location_persistence",
+      "description": "Turn 1 states a location ('New York, NY'), Turn 3 must still apply it even when the turn prompt does not repeat the location.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Hi, I am looking for Python developer roles in New York, NY.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "New York, NY"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "New York, NY"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "Can you give me the full details for the first job you found?",
+          "checks": {
+            "require_tools": ["get_job_details"],
+            "memory_contains": {
+              "location": "New York, NY"
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 3,
+          "user_message": "Are there any Django specific opportunities?",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "New York, NY"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "New York, NY"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_02",
+      "name": "location_update_remote",
+      "description": "Turn 1 sets a physical location ('Chicago, IL'), Turn 2 says 'now only remote', which must override the location filter and persist into Turn 3.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "I am searching for React frontend developer jobs in Chicago, IL.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Chicago, IL"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "Chicago, IL"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "My situation changed, now only remote roles please.",
+          "checks": {
+            "memory_contains": {
+              "location": "Remote"
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 3,
+          "user_message": "Show me TypeScript jobs now.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Remote"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "Remote"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_03",
+      "name": "seniority_exclusion_persistence",
+      "description": "'No senior roles' in Turn 2 must change the level filter to Entry level and persist into Turn 3.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Show me Data Analyst jobs in Houston, TX.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Houston, TX"
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "I only have 1 year of experience, no senior roles please, only entry level.",
+          "checks": {
+            "memory_contains": {
+              "experience_level": "Entry level"
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 3,
+          "user_message": "What about roles involving SQL and Tableau?",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "experience_level": "Entry level"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "level": "Entry level"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_04",
+      "name": "dislike_exclusion",
+      "description": "A stated dislike ('not interested in sales') must be stored in memory and excluded from subsequent recommendations.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Find me technical opportunities in Dallas, TX.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Dallas, TX"
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "I am definitely not interested in sales or marketing positions.",
+          "checks": {
+            "memory_list_contains": {
+              "dislikes": ["sales"]
+            },
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 3,
+          "user_message": "Show me more tech options in Dallas.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_list_contains": {
+              "dislikes": ["sales"]
+            },
+            "disallowed_in_result_titles": ["sales", "account executive"],
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_05",
+      "name": "vague_request_no_hallucination",
+      "description": "A vague request must trigger clarification or a real search, but must never cite invented or non-existent job IDs.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "I need a job.",
+          "checks": {
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "Software engineer in Houston, TX.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Houston, TX"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "Houston, TX"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_06",
+      "name": "tool_error_handling",
+      "description": "An invalid job ID passed to get_job_details must return an error response, and the agent must handle it cleanly without crashing or raising 500.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Can you pull up full details for job ID invalid_id_99999999?",
+          "checks": {
+            "require_tools": ["get_job_details"],
+            "must_not_crash": true,
+            "response_contains_phrase": ["not found", "unable to find", "could not find", "doesn't exist", "does not exist"]
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "Okay, then search for DevOps engineer jobs in United States instead.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_07",
+      "name": "explicit_filter_refinement",
+      "description": "User explicitly specifies structured preferences, prompting the refine_filters tool call.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Please set my search preferences: Remote only, Mid-Senior level, with AWS and Kubernetes.",
+          "checks": {
+            "memory_contains": {
+              "location": "Remote",
+              "experience_level": "Mid-Senior level"
+            },
+            "memory_list_contains": {
+              "skills": ["AWS", "Kubernetes"]
+            },
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "What jobs match this configuration?",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "Remote",
+                "level": "Mid-Senior level"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_08",
+      "name": "skills_persistence_across_turns",
+      "description": "Declared technical skills from Turn 1 must persist into Turn 3 search even when interrupted by a general question.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "I specialize in Machine Learning and PyTorch in New York, NY.",
+          "checks": {
+            "memory_contains": {
+              "location": "New York, NY"
+            },
+            "memory_list_contains": {
+              "skills": ["Machine Learning", "PyTorch"]
+            },
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "What kind of interview preparation should I focus on?",
+          "checks": {
+            "memory_contains": {
+              "location": "New York, NY"
+            },
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 3,
+          "user_message": "Search for jobs matching my skillset now.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "New York, NY"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "New York, NY"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_09",
+      "name": "job_inspection_then_location_switch",
+      "description": "User inspects a specific job returned in Turn 1, then switches location to Remote in Turn 3.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Search for Python backend jobs in New York, NY.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "New York, NY"
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "Show me more details about the first posting.",
+          "checks": {
+            "require_tools": ["get_job_details"],
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 3,
+          "user_message": "Actually, switch to Remote only and show me options.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Remote"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "Remote"
+              }
+            },
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "scenario_10",
+      "name": "multi_constraint_compounding",
+      "description": "Constraints given across 3 separate turns (location, then level, then dislike) must all be active simultaneously in Turn 4.",
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Find software engineering jobs in Chicago, IL.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Chicago, IL"
+            },
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 2,
+          "user_message": "Also, limit results to Mid-Senior level only.",
+          "checks": {
+            "memory_contains": {
+              "location": "Chicago, IL",
+              "experience_level": "Mid-Senior level"
+            },
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 3,
+          "user_message": "And I do not want any sales or business development roles.",
+          "checks": {
+            "memory_contains": {
+              "location": "Chicago, IL",
+              "experience_level": "Mid-Senior level"
+            },
+            "memory_list_contains": {
+              "dislikes": ["sales"]
+            },
+            "must_not_crash": true
+          }
+        },
+        {
+          "turn": 4,
+          "user_message": "Show me the top 3 results matching all my criteria.",
+          "checks": {
+            "require_tools": ["search_jobs"],
+            "memory_contains": {
+              "location": "Chicago, IL",
+              "experience_level": "Mid-Senior level"
+            },
+            "tool_arg_contains": {
+              "search_jobs": {
+                "location": "Chicago, IL",
+                "level": "Mid-Senior level"
+              }
+            },
+            "disallowed_in_result_titles": ["sales", "account executive"],
+            "require_valid_job_citations": true,
+            "must_not_crash": true
+          }
+        }
+      ]
+    }
+  ]
+}
