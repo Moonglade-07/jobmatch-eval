@@ -122,20 +122,20 @@ def load_retrieval_models():
     from src.explain import GeminiExplainer
     from src.retrieval import (
         BM25Retriever,
-        CrossEncoderReRanker,
+        CrossEncoderRetriever,
         DenseRetriever,
-        HybridRetriever,
+        HybridRRFRetriever,
     )
 
     data_path = Path("data/jobs_clean.parquet")
     bm25 = BM25Retriever(data_path=data_path)
     dense = DenseRetriever(data_path=data_path)
-    hybrid = HybridRetriever(bm25_retriever=bm25, dense_retriever=dense)
+    hybrid = HybridRRFRetriever(bm25_retriever=bm25, dense_retriever=dense)
 
     cross_encoder = None
     if not DISABLE_CROSS_ENCODER:
         try:
-            cross_encoder = CrossEncoderReRanker(candidate_retriever=hybrid)
+            cross_encoder = CrossEncoderRetriever(hybrid_retriever=hybrid)
         except Exception:
             cross_encoder = None
 
@@ -162,6 +162,14 @@ st.info(
     "ℹ️ **Evaluation Disclaimer**: Demo on a 3,000-posting sample of LinkedIn postings; "
     "relevance labels in the evaluation are rule-based and unverified."
 )
+
+daily_used = get_daily_requests_count()
+if daily_used >= MAX_DAILY_REQUESTS:
+    st.error(
+        f"🛑 **Daily Cap Reached**: The application has reached its daily limit of {MAX_DAILY_REQUESTS} model requests "
+        "to protect free-tier API quotas. Job search and ranking remain fully operational; "
+        "LLM match explanations and conversational agent turns will resume tomorrow."
+    )
 
 if not API_KEY:
     st.warning(

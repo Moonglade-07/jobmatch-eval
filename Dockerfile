@@ -7,9 +7,10 @@ WORKDIR /app
 # Prevent Python from writing .pyc files and enable unbuffered output
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV STREAMLIT_SERVER_PORT=8501
+ENV STREAMLIT_SERVER_PORT=7860
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV STREAMLIT_SERVER_HEADLESS=true
+ENV DISABLE_CROSS_ENCODER=1
 
 # Install minimal build tools for compiling C extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -36,12 +37,12 @@ COPY app.py .
 # Guarantees self-contained, reproducible cold-start deployment without volume mounts
 RUN python src/index.py
 
-# Expose standard Streamlit port
-EXPOSE 8501
+# Expose Hugging Face Spaces standard port
+EXPOSE 7860
 
 # Healthcheck for container orchestrators and cloud hosts
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+    CMD curl -f http://localhost:7860/_stcore/health || exit 1
 
-# Launch Streamlit app
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+# Launch Streamlit app on port 7860
+CMD ["streamlit", "run", "app.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.headless=true"]
