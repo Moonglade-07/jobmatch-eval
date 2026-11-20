@@ -137,6 +137,7 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 - **In-Depth Analysis Report**: Comprehensive query case studies, statistical power analysis, and failure mode breakdowns are documented in [`reports/analysis_retrieval.md`](reports/analysis_retrieval.md).
 
 ### 1. Main Setting: Product Pipeline (Filters ON, Skill Boost ON $w=0.2$)
+*(Data source: `reports/retrieval_metrics_main.json` | Command: `python src/run_retrieval_eval.py`)*
 *Evaluated against model-proposed, unverified relevance labels*
 
 | Strategy | Precision@5 (95% CI) | Recall@10 (95% CI) | MRR (95% CI) | nDCG@10 (95% CI) | Unjudged Rate@10 | CPU p50 Latency | CPU p95 Latency |
@@ -150,6 +151,7 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 > All four strategies exhibit 0.00% unjudged rate in top 10 under the main configuration because candidate pooling in Phase 2A pooled the top 20 candidates across these exact four retrieval streams.
 
 ### 2. Secondary Setting: Pure Retrieval (Filters OFF, Skill Boost OFF) — Not comparable (labels pooled under filters, 76% unjudged)
+*(Data source: `reports/retrieval_metrics_pure.json` | Command: `python src/run_retrieval_eval.py`)*
 *Evaluated against model-proposed, unverified relevance labels*
 
 | Strategy | Precision@5 (95% CI) | Recall@10 (95% CI) | MRR (95% CI) | nDCG@10 (95% CI) | Unjudged Rate@10 |
@@ -163,6 +165,7 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 > **Not comparable (labels pooled under filters, 76% unjudged)**: Candidate pooling was performed under active location and seniority filters. Out-of-market jobs retrieved when filters are disabled were never pooled or evaluated, resulting in unjudged rates of 76%–85% (treated as non-relevant label 0). These numbers do not reflect pure retrieval quality.
 
 ### 3. Paired Statistical Significance (Bootstrap 95% CIs on Differences)
+*(Data source: `reports/retrieval_paired_comparisons.json` | Command: `python src/run_retrieval_eval.py`)*
 *Evaluated against model-proposed, unverified relevance labels*
 
 | Comparison ($A$ vs $B$) | Metric | Mean Difference ($A - B$) | 95% Bootstrap CI | Statistical Conclusion |
@@ -189,7 +192,7 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 | **Cross-Encoder vs BM25** | `ndcg@10` | -0.0193 | [-0.0781, 0.0410] | No clear difference (CI spans 0.0) |
 
 ### 4. Query Latency Profile on CPU (25 timed runs per step)
-*(Measured on AMD 12-core CPU, PyTorch CPU execution with `torch_threads=6`, `CUDA: False`)*
+*(Measured on AMD 12-core CPU, PyTorch CPU execution with `torch_threads=6`, `CUDA: False` | Data source: `reports/retrieval_latency.json` | Command: `python src/run_retrieval_eval.py`)*
 
 > **Measurement Conditions**: Latency was measured warm (retriever warm-up executed before timing), single-process, CPU-only, with inverted index, tokenized corpus, and regex caches pre-built outside the timed loop.
 
@@ -205,6 +208,7 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 *One-off startup / index build times (outside timed queries): BM25 Index Build = 5992.1 ms, Dense Init = 877.8 ms, Cross-Encoder Load = 242.5 ms.*
 
 ### 5. Ablation Study: Filter, Boost, and Weight Tuning
+*(Data source: `reports/retrieval_ablation.json` | Command: `python src/run_retrieval_eval.py`)*
 *Evaluated against model-proposed, unverified relevance labels*
 
 | Configuration | Precision@5 | Recall@10 | MRR | nDCG@10 | Unjudged Rate@10 |
@@ -217,6 +221,7 @@ To eliminate retrieval strategy bias, candidate pools were constructed per profi
 | Filters ON, Boost w=0.4 | 0.5267 | 0.5476 | 0.8861 | 0.6122 | 0.0% |
 
 ### 6. Circularity Audit: Relevant Subset with Zero Literal Skill Overlap (Indicative Only: 51 pairs, 17 profiles)
+*(Data source: `reports/retrieval_circularity_check.json` | Command: `python src/run_retrieval_eval.py`)*
 *Evaluated against model-proposed, unverified relevance labels*
 
 Subset consists of **51 relevant candidate postings across 17 profiles** that share zero literal keyword overlap with candidate declared skills (13 profiles had zero such postings and are excluded from Recall/MRR means):
@@ -246,6 +251,7 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 - **Evaluation Methodology**: 100% programmatic verification against raw job posting text. Zero LLM judge and zero human annotations.
 
 ### 1. Schema Validity & Fallback Robustness
+*(Data source: `reports/llm_quality.json` | Command: `python src/run_explain_eval.py --full`)*
 *Programmatic checks against job text; no human or LLM judge*
 
 | Metric | Observed Count | Measured Value | 95% Confidence / Upper Bound | Description |
@@ -258,6 +264,7 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 > **Fallback Breakdown**: `invalid_json: 0`, `validation_error: 0`, `api_error: 0`, `timeout: 0`, `quota: 0` across all 150 calls.
 
 ### 2. Literal Groundedness & Profile Alignment
+*(Data source: `reports/llm_quality.json` | Command: `python src/run_explain_eval.py --full`)*
 *Programmatic checks against job text; no human or LLM judge*
 
 | Metric | Pooled Rate (Skills) | Macro Profile Average | 95% Cluster Bootstrap CI | Definition / Verification Scope |
@@ -272,7 +279,7 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 > **Scope of Contradiction Leakage**: Contradiction leakage measures internal self-contradiction only (instances where the model mistakenly claims a skill is missing despite it being present in both the candidate's profile and the job posting). It does not evaluate the overall completeness or correctness of the `missing_skills` list from the employer's perspective.
 
 ### 3. Operational Performance & Resource Utilization
-*(Measured live over 125 API calls; 25 calls served from disk cache)*
+*(Data source: `reports/llm_quality.json` | Command: `python src/run_explain_eval.py --full` | Measured live over 125 API calls; 25 calls served from disk cache)*
 
 | Metric | Measured Value | Operational Context |
 |---|---|---|
@@ -292,6 +299,7 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 ## 6. Phase 3A: Conversational Agent & API Evaluation
 
 ### Multi-Turn Scripted Scenarios Evaluation
+*(Data source: `reports/agent_eval.json` | Command: `python src/run_agent_eval.py --full`)*
 *Programmatic checks against scenario constraints; no human or LLM judge*
 
 | Metric | Measured Value | Operational Context |
@@ -310,6 +318,7 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 | **Cache Hit Rate** | 33.3% (1 hits, 2 live calls) | Persistent on-disk JSON cache (`data/cache/agent/`) |
 
 ### Scenario Breakdown
+*(Data source: `reports/agent_eval.json` | Command: `python src/run_agent_eval.py --full`)*
 *Programmatic checks against scenario constraints; no human or LLM judge*
 
 | Scenario ID | Name | Turns | Status | Tools Called | Failure / Inspection Notes |
