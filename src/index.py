@@ -12,18 +12,19 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 # Disable ChromaDB telemetry and force offline mode for pre-cached models
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
-import chromadb
-from chromadb.config import Settings
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
+
+if TYPE_CHECKING:
+    import chromadb
+    from sentence_transformers import SentenceTransformer
 
 
 DEFAULT_DATA_PATH = Path("data/jobs_clean.parquet")
@@ -130,6 +131,8 @@ def initialize_chroma_collection(
         Tuple of (chroma_client, collection).
     """
     persist_dir.mkdir(parents=True, exist_ok=True)
+    import chromadb
+    from chromadb.config import Settings
     settings = Settings(anonymized_telemetry=False, is_persistent=True)
     client = chromadb.PersistentClient(path=str(persist_dir), settings=settings)
 
@@ -259,6 +262,7 @@ def run_indexing(
     df = load_cleaned_postings(data_path)
 
     print(f"Loading embedding model: {model_name}...")
+    from sentence_transformers import SentenceTransformer
     model = SentenceTransformer(model_name)
 
     print(f"Initializing ChromaDB vector store at {persist_dir}...")

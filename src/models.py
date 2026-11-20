@@ -80,6 +80,13 @@ class SearchResult:
     skill_boost: float = 0.0
     filter_tier: int = 1
 
+    @property
+    def snippet(self) -> str:
+        """First 250 characters of description."""
+        if not self.description:
+            return ""
+        return self.description[:250] + ("..." if len(self.description) > 250 else "")
+
     def __iter__(self) -> Iterator[Any]:
         """Allow tuple unpacking: job_id, score = result.
 

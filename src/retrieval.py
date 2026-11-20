@@ -15,7 +15,7 @@ import re
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 # Ensure project root is in sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -25,13 +25,14 @@ os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
-import chromadb
-from chromadb.config import Settings
 import numpy as np
 import pandas as pd
 from rank_bm25 import BM25Okapi
-from sentence_transformers import CrossEncoder, SentenceTransformer
-import torch
+
+if TYPE_CHECKING:
+    import chromadb
+    from sentence_transformers import CrossEncoder, SentenceTransformer
+    import torch
 
 from src.index import DEFAULT_CHROMA_DIR, DEFAULT_COLLECTION_NAME, DEFAULT_MODEL_NAME, format_passage
 from src.models import Profile, SearchResult
@@ -280,6 +281,10 @@ class DenseRetriever(BaseRetriever):
             collection_name: ChromaDB collection name.
             model_name: SentenceTransformer Hugging Face model identifier.
         """
+        import chromadb
+        from chromadb.config import Settings
+        from sentence_transformers import SentenceTransformer
+
         if model is not None:
             self.model = model
         else:
@@ -496,6 +501,9 @@ class CrossEncoderRetriever(BaseRetriever):
         self.hybrid_retriever = hybrid_retriever
         self.top_candidates_depth = top_k_candidates if top_k_candidates is not None else top_candidates_depth
 
+        import torch
+        from sentence_transformers import CrossEncoder
+
         if cross_encoder is not None:
             self.cross_encoder = cross_encoder
         else:
@@ -546,6 +554,7 @@ class CrossEncoderRetriever(BaseRetriever):
             for item in candidates
         ]
 
+        import torch
         with torch.inference_mode():
             scores = self.cross_encoder.predict(pairs, show_progress_bar=False)
 
