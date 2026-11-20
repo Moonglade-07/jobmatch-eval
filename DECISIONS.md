@@ -143,6 +143,16 @@ This document records all engineering decisions, model justifications, trade-off
   - **Dislike Filtering**: When candidate expresses dislikes (e.g. "not interested in sales"), the retriever candidate pool is expanded ($k \times 3$) and post-filtered to exclude matching titles and descriptions before returning to the model.
   - **Deterministic Disk Caching**: Model responses cached by SHA-256 hash of turn context in `data/cache/agent/`.
   - **Grounded Tool Citations**: Strict programmatic check ensures the model cites only jobs returned in the current or prior tool results.
+- **Evaluation Methodology & Failure Disaggregation**:
+  - **Scripted Scenarios Scope**: Evaluated across 10 hand-authored multi-turn scenarios comprising exactly **28 total turns**.
+  - **Separation of Infrastructure vs Behavioral Failures**:
+    - **Infrastructure Failures (1)**: `scenario_08` failed on initial execution at Turn 2 due to transient upstream API unavailability (`Gemini API request failed after retries`, HTTP 503). Both Attempt 1 (infrastructure failure) and Attempt 2 (behavioral pass: 100% skills persistence) are recorded in `reports/agent_eval.json`.
+    - **Behavioral Failures (1)**: `scenario_10` failed Turn 4 programmatic assertion (`tool_arg_contains: {"location": "Chicago, IL", "level": "Mid-Senior level"}`). Inspection confirmed session memory retained both Chicago, IL and Mid-Senior level, but the model pivoted to pass `location="Remote"` after finding zero Chicago postings in earlier turns, while Mid-Senior level was applied through session memory. Pass criteria were left unchanged.
+  - **Exact Denominators**:
+    - **Memory Retention**: 23/23 checks (100.0%).
+    - **Tool Call Success**: 31/32 calls (96.9%; single failure was an expected negative test for non-existent job ID in `scenario_06`).
+  - **Operational Latency**: Turn latency averages ~10.8 s (p50 ~5.9 s), with worst-case turns reaching ~37–42 s during multi-step tool loops or upstream retries. Evaluated exclusively on `gemini-3.1-flash-lite`.
+
 
 
 

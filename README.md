@@ -298,18 +298,21 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 |---|---|---|
 | **Evaluated Model** | `gemini-3.1-flash-lite` | Gemini Function Calling (`tools`) |
 | **Total Scenarios** | 10 | Scripted multi-turn scenarios (28 total turns) |
-| **Scenarios Passed** | **8/10 (80.0%)** | All programmatic assertions satisfied |
-| **Tool Call Success Rate** | **96.8%** (31 tool calls) | Executed without exceptions or invalid arguments |
-| **Memory Retention Rate** | **100.0%** (23 memory checks) | Constraints preserved across distracting/follow-up turns |
-| **Mean Tool Steps per Turn** | **2.11 steps** | Capped strictly at 5 steps per turn |
-| **Mean Turn Latency** | **10431.1 ms** | End-to-end turn latency (live + cached) |
-| **Max Turn Latency** | **36714.3 ms** | Worst-case single turn latency |
-| **Cache Hit Rate** | 21.4% (6 hits, 22 live calls) | Persistent on-disk JSON cache (`data/cache/agent/`) |
+| **Behavioral Scenarios Passed** | **9/10 (90.0%)** | Satisfied all behavioral assertions across multi-turn interactions |
+| **First-Pass Scenarios Passed** | **8/10 (80.0%)** | Passed on initial run without infrastructure failures |
+| **Infrastructure Failures** | **1** (`scenario_08` Attempt 1) | Transient upstream API failure (`Gemini API request failed after retries`) |
+| **Behavioral Failures** | **1** (`scenario_10`) | Pivoted to Remote query when 0 Chicago jobs found; Mid-Senior applied via memory |
+| **Tool Call Success Rate** | **96.9%** (31/32 tool calls) | 1 expected failure in `scenario_06` testing non-existent job ID |
+| **Memory Retention Rate** | **100.0%** (23/23 memory checks) | Constraints preserved across distracting/follow-up turns |
+| **Mean Tool Steps per Turn** | **2.14 steps** | Capped strictly at 5 steps per turn |
+| **Mean Turn Latency** | **10828.3 ms** | End-to-end turn latency (live + cached) |
+| **Max Turn Latency** | **41697.0 ms** | Worst-case single turn latency |
+| **Cache Hit Rate** | 33.3% (1 hits, 2 live calls) | Persistent on-disk JSON cache (`data/cache/agent/`) |
 
 ### Scenario Breakdown
 *Programmatic checks against scenario constraints; no human or LLM judge*
 
-| Scenario ID | Name | Turns | Status | Tools Called | Failure Notes |
+| Scenario ID | Name | Turns | Status | Tools Called | Failure / Inspection Notes |
 |---|---|---|---|---|---|
 | `scenario_01` | location_persistence | 3 | **PASS** | `get_job_details`, `search_jobs` | — |
 | `scenario_02` | location_update_remote | 3 | **PASS** | `search_jobs` | — |
@@ -318,9 +321,9 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 | `scenario_05` | vague_request_no_hallucination | 2 | **PASS** | `search_jobs` | — |
 | `scenario_06` | tool_error_handling | 2 | **PASS** | `get_job_details`, `search_jobs` | — |
 | `scenario_07` | explicit_filter_refinement | 2 | **PASS** | `refine_filters`, `search_jobs` | — |
-| `scenario_08` | skills_persistence_across_turns | 3 | **FAIL** | `refine_filters`, `search_jobs` | Turn 2: Turn crashed with error: Gemini API request failed after retries. |
+| `scenario_08` | skills_persistence_across_turns | 3 | **PASS** (Attempt 2) | `refine_filters`, `search_jobs` | Attempt 1: Infrastructure failure (Turn 2: Turn crashed with error: Gemini API request failed after retries.). Attempt 2: Passed with full skills persistence. |
 | `scenario_09` | job_inspection_then_location_switch | 3 | **PASS** | `get_job_details`, `search_jobs` | — |
-| `scenario_10` | multi_constraint_compounding | 4 | **FAIL** | `refine_filters`, `search_jobs` | Turn 4: Tool 'search_jobs' was not called with argument 'location' containing 'Chicago, IL'.; Turn 4: Tool 'search_jobs' was not called with argument 'level' containing 'Mid-Senior level'. |
+| `scenario_10` | multi_constraint_compounding | 4 | **FAIL** | `refine_filters`, `search_jobs` | Turn 4: Tool 'search_jobs' was not called with argument 'location' containing 'Chicago, IL'.; Turn 4: Tool 'search_jobs' was not called with argument 'level' containing 'Mid-Senior level'.; Inspection note: In Turn 4, the model retained 'Chicago, IL' and 'Mid-Senior level' in session memory. However, because earlier turns returned zero Chicago postings in this 3,000-job sample, the model pivoted to remote postings by passing location='Remote' to search_jobs, while Mid-Senior level was applied through session memory (as seen by mid-senior postings returned). The scenario failed strictly because the programmatic assertion demanded explicit tool arguments: location='Chicago, IL' and level='Mid-Senior level'. |
 
 <!-- RESULTS:END -->
 
@@ -371,7 +374,8 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 12. **Programmatic Verification Without LLM or Human Judge (Phase 2C)**: All explanation quality signals were audited via deterministic string and regex checks; no qualitative human evaluation or secondary LLM judge was utilized.
 13. **Free-Tier Rate Limits & Quotas (Phase 2C)**: High-throughput execution without billing requires rate-controlled pacing and persistent disk caching (`data/cache/explanations/`) to prevent rate-limit exhaustion under Google AI Studio project quotas.
 14. **Agent Retrieval Strategy Scope (Phase 3A)**: The conversational agent integrates `BM25Retriever` exclusively because it scored highest on nDCG@10 against rule-based proposed labels (`jobmatch-rubric-v1`). However, because those labels share lexical signals with BM25, this choice reflects heuristic alignment rather than absolute retrieval superiority. The four retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) were not compared inside the conversational agent.
-15. **Offline Scripted Agent Evaluation (Phase 3A)**: The conversational agent's multi-turn capabilities and memory retention are evaluated programmatically across 10 hand-authored multi-turn scenarios rather than live human interactions.
+15. **Offline Scripted Agent Evaluation & Sample Size (Phase 3A)**: The conversational agent's multi-turn capabilities and memory retention are evaluated programmatically across 10 hand-authored multi-turn scenarios (28 total turns) rather than live human interactions. This small scripted sample size limits statistical generalization and does not capture open-domain user dialogue variability.
+16. **Agent Latency & Single Model Scope (Phase 3A)**: Conversational turn latency averages about 10 s (observed mean ~10.8 s), with worst-case turns reaching ~37 s to ~42 s during multi-step tool execution loops, backoff retries, and network delays. Furthermore, evaluation was conducted exclusively on a single model (`gemini-3.1-flash-lite`); performance across alternative models or parameter scales has not been benchmarked.
 
 
 ---
