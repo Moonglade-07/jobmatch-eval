@@ -152,6 +152,10 @@ class ChatResponse(BaseModel):
     steps: int
     latency_ms: float
     cache_hit: bool
+    error: Optional[str] = Field(
+        None,
+        description="Error message if an upstream service error occurred during turn processing.",
+    )
 
 
 class HealthResponse(BaseModel):
@@ -390,4 +394,5 @@ def chat_turn(payload: ChatRequest) -> ChatResponse:
         steps=turn_res.steps,
         latency_ms=turn_res.latency_ms,
         cache_hit=turn_res.cache_hit,
+        error=str(turn_res.error) if turn_res.error else None,
     )

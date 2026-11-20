@@ -75,6 +75,7 @@ def setup_mock_services():
     mock_agent_turn.steps = 1
     mock_agent_turn.latency_ms = 45.2
     mock_agent_turn.cache_hit = False
+    mock_agent_turn.error = None
     mock_agent.chat.return_value = mock_agent_turn
 
     app_state.retriever = mock_retriever
@@ -224,3 +225,29 @@ def test_unhandled_exception_returns_500_without_stack_trace():
     # Verify sensitive error details and stack traces are suppressed
     assert "Database password" not in response.body.decode("utf-8")
     assert "Traceback" not in response.body.decode("utf-8")
+
+
+def test_chat_endpoint_graceful_api_error_handling():
+    """Verify POST /chat returns HTTP 200 with graceful message and flags error on upstream failure."""
+    mock_agent_turn = MagicMock()
+    mock_agent_turn.session_id = "quota_sess"
+    mock_agent_turn.reply = (
+        "I encountered a temporary service error while processing your request. Please try again shortly."
+    )
+    mock_agent_turn.tool_calls = []
+    mock_agent_turn.session_memory = {"turn_history": []}
+    mock_agent_turn.steps = 1
+    mock_agent_turn.latency_ms = 150.0
+    mock_agent_turn.cache_hit = False
+    mock_agent_turn.error = "Resource has been exhausted (HTTP 429 quota error)."
+
+    app_state.agent.chat.return_value = mock_agent_turn
+
+    req = ChatRequest(session_id="quota_sess", message="Find me software engineering jobs")
+    res = chat_turn(req)
+
+    assert isinstance(res, ChatResponse)
+    assert res.error == "Resource has been exhausted (HTTP 429 quota error)."
+    assert "temporary service error" in res.reply.lower()
+    assert res.steps == 1
+

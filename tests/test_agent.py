@@ -210,3 +210,31 @@ def test_agent_dislike_filtering_in_search(temp_agent_dir):
 
     titles = [r["title"].lower() for r in results]
     assert not any("sales" in t for t in titles)
+
+
+def test_agent_api_error_graceful_handling(temp_agent_dir):
+    """Verify agent gracefully handles upstream API quota/service errors without crashing."""
+    from unittest.mock import MagicMock
+
+    agent = JobSearchAgent(
+        api_key="mock_key",
+        sessions_dir=temp_agent_dir["sessions_dir"],
+        cache_dir=temp_agent_dir["cache_dir"],
+        data_path=temp_agent_dir["data_file"],
+    )
+    # Simulate API quota exhaustion (HTTP 429)
+    agent._call_gemini_api = MagicMock(
+        return_value=(429, None, "Resource has been exhausted (e.g. check quota).")
+    )
+
+    result = agent.chat(session_id="quota_sess", message="Find me software engineering jobs")
+
+    # Agent must not crash; should return graceful message and flag error
+    assert result.error == "Resource has been exhausted (e.g. check quota)."
+    assert "temporary service error" in result.reply.lower()
+    assert result.steps == 1
+    # Turn history must still persist user intent and graceful reply
+    assert len(result.session_memory["turn_history"]) == 2
+    assert result.session_memory["turn_history"][0]["text"] == "Find me software engineering jobs"
+    assert "temporary service error" in result.session_memory["turn_history"][1]["text"].lower()
+
