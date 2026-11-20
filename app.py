@@ -1,4 +1,4 @@
-"""Streamlit Demo Application for Job Search & Conversational Agent (Phase 3B).
+"""Streamlit Demo Application for Job Search & Conversational Agent (Phase 3B - Local Only).
 
 Provides:
 1. Job Search Tab: Multi-strategy retrieval (BM25, Dense, Hybrid RRF, Cross-Encoder)
@@ -7,7 +7,8 @@ Provides:
 2. Conversational Agent Tab: Multi-turn agent interaction with persistent session memory,
    tool-call inspection (search_jobs, get_job_details, refine_filters), and loop cap.
 3. Strict Free-Tier Quota & Rate Limiting: Per-session and daily request caps to protect
-   Google AI Studio free quota; GEMINI_API_KEY is never exposed.
+   your local Google AI Studio API key against unintended quota exhaustion or runaway loops;
+   GEMINI_API_KEY is never exposed.
 4. CC BY-SA 4.0 Dataset Attribution & Disclaimer Banner.
 """
 
@@ -89,14 +90,14 @@ def increment_daily_requests_count() -> int:
 
 
 def check_quota_available() -> Tuple[bool, str]:
-    """Check both per-session and daily request caps."""
+    """Check both per-session and daily request caps protecting local API key."""
     sess_count = st.session_state.get("session_requests", 0)
     if sess_count >= MAX_SESSION_REQUESTS:
-        return False, f"Session request limit reached ({MAX_SESSION_REQUESTS}/{MAX_SESSION_REQUESTS})."
+        return False, f"Session request limit reached ({MAX_SESSION_REQUESTS}/{MAX_SESSION_REQUESTS}). Reset conversation to protect local API quota."
 
     daily_count = get_daily_requests_count()
     if daily_count >= MAX_DAILY_REQUESTS:
-        return False, f"Daily application request cap reached ({MAX_DAILY_REQUESTS}/{MAX_DAILY_REQUESTS} requests today)."
+        return False, f"Daily safety cap reached ({MAX_DAILY_REQUESTS}/{MAX_DAILY_REQUESTS} calls today) to protect local Google AI Studio API key."
 
     return True, ""
 
@@ -166,14 +167,14 @@ st.info(
 daily_used = get_daily_requests_count()
 if daily_used >= MAX_DAILY_REQUESTS:
     st.error(
-        f"🛑 **Daily Cap Reached**: The application has reached its daily limit of {MAX_DAILY_REQUESTS} model requests "
-        "to protect free-tier API quotas. Job search and ranking remain fully operational; "
-        "LLM match explanations and conversational agent turns will resume tomorrow."
+        f"🛑 **Local Daily Safety Cap Reached**: The application has reached its daily limit of {MAX_DAILY_REQUESTS} model requests "
+        "to protect your local Google AI Studio API key from unintended quota exhaustion or runaway loops. "
+        "Job search and ranking remain fully operational; LLM match explanations and conversational agent turns will resume tomorrow."
     )
 
 if not API_KEY:
     st.warning(
-        "⚠️ **GEMINI_API_KEY** is not configured in environment or Streamlit secrets. "
+        "⚠️ **GEMINI_API_KEY** is not configured in .env or secrets. "
         "Job retrieval is fully functional; LLM explanations and conversational agent "
         "will operate in deterministic heuristic fallback mode."
     )
@@ -183,9 +184,9 @@ if not API_KEY:
 # -----------------------------------------------------------------------------
 
 with st.sidebar:
-    st.header("⚙️ System Status")
+    st.header("⚙️ Local System Status")
 
-    # Quota usage meters
+    # Quota usage meters protecting local API key
     sess_used = st.session_state.session_requests
     daily_used = get_daily_requests_count()
 
@@ -194,7 +195,8 @@ with st.sidebar:
     st.caption(f"Session Quota: **{sess_used} / {MAX_SESSION_REQUESTS}** requests")
 
     st.progress(min(1.0, daily_used / MAX_DAILY_REQUESTS))
-    st.caption(f"Daily Global Quota: **{daily_used} / {MAX_DAILY_REQUESTS}** requests")
+    st.caption(f"Daily Safety Cap: **{daily_used} / {MAX_DAILY_REQUESTS}** requests")
+    st.caption("🛡️ *Protects local Google AI Studio free tier (1,500 RPD).*")
 
     st.divider()
 
@@ -209,8 +211,8 @@ with st.sidebar:
 
     if DISABLE_CROSS_ENCODER:
         st.warning(
-            "⚠️ **Cloud Resource Limit**: Cross-Encoder Re-Ranking is disabled to conserve host memory. "
-            "Hybrid RRF is used as default."
+            "⚠️ **Local Resource Optimization**: Cross-Encoder Re-Ranking is disabled (`DISABLE_CROSS_ENCODER=1`) "
+            "to conserve local RAM (811 MB steady-state). Hybrid RRF is used as default."
         )
 
     st.divider()

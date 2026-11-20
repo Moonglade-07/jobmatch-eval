@@ -54,4 +54,4 @@ def test_quota_checks():
         with patch.dict(app.st.session_state, {"session_requests": 2}):
             ok, msg = app.check_quota_available()
             assert ok is False
-            assert "Daily application request cap reached" in msg
+            assert "Daily safety cap reached" in msg
