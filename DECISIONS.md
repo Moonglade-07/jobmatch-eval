@@ -170,11 +170,16 @@ This document records all engineering decisions, model justifications, trade-off
     - Raw uncleaned dataset (`data/raw_postings.csv`, 15,000+ postings) is strictly excluded via `.gitignore` and `.dockerignore`.
     - Only the cleaned, deduplicated 3,000-posting derivative sample (`data/jobs_clean.parquet`) is bundled. Under CC BY-SA 4.0 Section 3, adaptations and derivative databases may be shared provided appropriate credit is given and derivatives are shared under the same license terms.
     - Prominent attribution and license links are embedded in the application footer, `README.md`, and this ledger.
-- **Free-Host Resource Management & Cold Start Strategy**:
-  - Free hosting platforms (e.g. Hugging Face Spaces free CPU tier) provide constrained compute (2 vCPU / 2GB–16GB RAM).
-  - The bi-encoder (`all-MiniLM-L6-v2`) requires only ~80MB RAM and runs efficiently on CPU.
-  - The cross-encoder (`ms-marco-MiniLM-L-6-v2`) requires ~250MB RAM and heavy CPU re-ranking cycles.
-  - In cloud deployments, the environment variable `DISABLE_CROSS_ENCODER=1` can disable cross-encoder re-ranking, gracefully falling back to Hybrid RRF with a clear user notice rather than risking Out-Of-Memory (OOM) pod evictions.
+- **Free-Host Resource Management, Memory Profiling & Cold Start Strategy**:
+  - **Empirical Memory & Cold-Start Measurements (Single Process, CPU)**:
+    - *Baseline Python Runtime*: 17.9 MB RSS.
+    - *BM25 Ingestion & Tokenized Corpus*: Loaded in **5.85 s**; RSS reaches **319.7 MB** (+301.8 MB).
+    - *DenseRetriever (ChromaDB + all-MiniLM-L6-v2)*: Loaded in **15.41 s**; RSS reaches **811.4 MB** (+491.7 MB).
+    - *Combined Pipeline without Cross-Encoder (BM25 + Dense + Hybrid RRF)*: Cold-start **21.26 s**; RSS **811.4 MB**.
+    - *Cross-Encoder Re-Ranker (ms-marco-MiniLM-L-6-v2)*: Model weights load in 0.33 s; idle RSS reaches **904.6 MB** (+93.2 MB), with peak inference memory exceeding **1.1 GB+** during 50-candidate cross-attention passes.
+  - **Decision to Disable Cross-Encoder in Cloud Deployment**:
+    - On shared free cloud containers (such as Hugging Face Spaces free tier), running deep cross-encoder re-ranking under multi-user concurrency risks Out-Of-Memory (OOM) container eviction and introduces ~65 ms CPU inference overhead per query.
+    - Setting `DISABLE_CROSS_ENCODER=1` in `Dockerfile` disables cross-encoder re-ranking for cloud deployment, stabilizing steady-state memory at ~811 MB and defaulting search to Hybrid RRF with a clear user notice in the app sidebar, while leaving all 4 strategies available in unconstrained local environments.
 - **API Key Protection & Quota Safeguards**:
   - `GEMINI_API_KEY` is loaded exclusively from host environment variables or Streamlit secrets (`st.secrets`). It is never logged, printed, or sent to client browsers.
   - Built-in multi-tenant abuse protection:

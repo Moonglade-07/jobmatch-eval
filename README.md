@@ -519,22 +519,22 @@ pytest -v tests/
   # Build self-contained Docker image (builds Chroma index inside image)
   docker build -t jobmatch-ai .
 
-  # Run container on port 8501 with Gemini API key
-  docker run -p 8501:8501 -e GEMINI_API_KEY="your-key-here" jobmatch-ai
+  # Run container on port 7860 (or 8501) with Gemini API key
+  docker run -p 7860:7860 -e GEMINI_API_KEY="your-key-here" jobmatch-ai
   ```
 
 ### Local vs Deployed Differences
 | Dimension | Local Execution | Cloud Deployed Version (Hugging Face Spaces) |
 |---|---|---|
 | **Dataset Size** | Full 3,000 clean sample postings | Full 3,000 clean sample postings (identically indexed; never silently downsampled) |
-| **Retrieval Strategies** | All 4 enabled (BM25, Dense, Hybrid RRF, Cross-Encoder) | BM25, Dense, Hybrid RRF enabled; Cross-Encoder can be disabled via `DISABLE_CROSS_ENCODER=1` if host RAM is constrained |
+| **Retrieval Strategies** | All 4 enabled (BM25, Dense, Hybrid RRF, Cross-Encoder) | BM25, Dense, Hybrid RRF enabled; Cross-Encoder disabled (`DISABLE_CROSS_ENCODER=1`) to conserve host memory (811 MB steady-state vs 1.1 GB+ peak) |
 | **Agent Retriever** | BM25Retriever | BM25Retriever (backed exclusively by BM25 for reasons in Decision 10) |
 | **API Quota Management** | Unlimited local executions with disk cache | Capped at 20 requests per session, 200 requests per day globally to protect free tier |
 | **API Key Security** | Loaded from local `.env` | Stored exclusively in host secret store (`st.secrets`); never exposed in UI or logs |
 | **Fallback Handling** | Heuristic fallback on API exhaustion | Automatic heuristic fallback with prominent UI warning banner |
 
 ### Operational Limits & Free-Host Caveats
-1. **Host Memory & Cold Starts**: Free cloud containers run on shared vCPU resources. Cold starts take ~15–25 seconds while indices load into memory. The 3,000-posting index fits in ~15MB RAM and is loaded in full; it is never silently downsampled.
+1. **Host Memory & Cold Starts**: Measured local cold-start is **21.3 s** (811.4 MB RSS) without cross-encoder, vs **23.4 s** (904.6 MB RSS, peaking at 1.1 GB+ during re-ranking) with cross-encoder. Disabling the cross-encoder in deployment stabilizes memory within free-tier container limits. The 3,000-posting dataset is loaded in full; it is never downsampled.
 2. **Free-Tier API Protection**: Google AI Studio free tier enforces 15 RPM and 1,500 RPD. To prevent malicious quota exhaustion by external visitors, the app enforces strict session (20 calls) and daily (200 calls) caps.
 3. **No User Claims**: This application is a technical evaluation artifact and demonstration proof-of-concept. No live user base, production traffic, or commercial usage is claimed.
 
