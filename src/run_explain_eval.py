@@ -196,6 +196,14 @@ def run_explain_pipeline(
     print(f"Gemini Model: {explainer.model_name} | Prompt Version: {explainer.prompt_version}")
     print(f"Persistent Cache Directory: {DEFAULT_CACHE_DIR} (gitignored)")
 
+    if not explainer.api_key:
+        if OUTPUTS_JSONL_PATH.exists():
+            print(
+                f"\n[INFO] GEMINI_API_KEY is not configured in .env or environment.\n"
+                f"Recomputing evaluation metrics directly from committed {OUTPUTS_JSONL_PATH} with 0 new API calls."
+            )
+            return recompute_from_outputs()
+
     results: List[ExplainResult] = []
     OUTPUTS_JSONL_PATH.parent.mkdir(parents=True, exist_ok=True)
 

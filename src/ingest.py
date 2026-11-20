@@ -357,6 +357,12 @@ def run_ingest(
         Final cleaned and sampled DataFrame.
     """
     if not raw_path.exists():
+        if clean_path.exists():
+            print(
+                f"Raw dataset file not found at {raw_path}, but clean sample exists at {clean_path}. "
+                "Using existing clean sample."
+            )
+            return pd.read_parquet(clean_path)
         raise FileNotFoundError(
             f"Raw dataset file not found at {raw_path}. "
             "Ensure raw postings are downloaded before running ingestion."
