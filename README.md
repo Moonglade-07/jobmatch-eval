@@ -20,6 +20,11 @@ An end-to-end, reproducible ML portfolio project building and comparing retrieva
    $$RRF(d) = \sum_{s \in \{bm25, dense\}} \frac{1}{60 + \text{rank}_s(d)}$$
 4. **Hybrid + Cross-Encoder Re-Rank (`CrossEncoderRetriever`)**: Two-stage pipeline taking the top 50 candidates from Hybrid RRF and re-ranking via `cross-encoder/ms-marco-MiniLM-L-6-v2` cross-attention and sigmoid normalization.
 
+### Conversational Career Agent (Phase 3A)
+- **Architecture**: Multi-turn conversational agent (`src/agent.py`) leveraging Gemini Function Calling (`gemini-3.1-flash-lite`) with 3 tools: `search_jobs`, `get_job_details`, and `refine_filters`.
+- **Underlying Retriever Selection**: The agent uses BM25 because it scored highest on nDCG@10 against rule-based labels that share its signals; the four retrieval strategies were **not compared inside the agent**.
+- **Operational Bounds**: Persistent session state on disk (`data/sessions/{session_id}.json`), strict 5-step loop cap per turn (`MAX_STEPS_PER_TURN = 5`), candidate dislike filtering, and disk response caching (`data/cache/agent/`).
+
 ### Personalization & Filtering Pipeline
 - **Profile Query Synthesis**: Structured query generation combining target role, declared technical skills, seniority tier, and narrative resume text.
 - **Three-Tier Fallback Hierarchy**:
@@ -281,6 +286,42 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 
 ### 4. Qualitative Audit & Sample Explanations
 A full qualitative inspection containing 10 randomly sampled explanations (seed = 42) and the 5 worst cases by literal groundedness is documented in [`reports/llm_samples.md`](reports/llm_samples.md).
+
+---
+
+## 6. Phase 3A: Conversational Agent & API Evaluation
+
+### Multi-Turn Scripted Scenarios Evaluation
+*Programmatic checks against scenario constraints; no human or LLM judge*
+
+| Metric | Measured Value | Operational Context |
+|---|---|---|
+| **Evaluated Model** | `gemini-3.1-flash-lite` | Gemini Function Calling (`tools`) |
+| **Total Scenarios** | 10 | Scripted multi-turn scenarios (28 total turns) |
+| **Scenarios Passed** | **8/10 (80.0%)** | All programmatic assertions satisfied |
+| **Tool Call Success Rate** | **96.8%** (31 tool calls) | Executed without exceptions or invalid arguments |
+| **Memory Retention Rate** | **100.0%** (23 memory checks) | Constraints preserved across distracting/follow-up turns |
+| **Mean Tool Steps per Turn** | **2.11 steps** | Capped strictly at 5 steps per turn |
+| **Mean Turn Latency** | **10431.1 ms** | End-to-end turn latency (live + cached) |
+| **Max Turn Latency** | **36714.3 ms** | Worst-case single turn latency |
+| **Cache Hit Rate** | 21.4% (6 hits, 22 live calls) | Persistent on-disk JSON cache (`data/cache/agent/`) |
+
+### Scenario Breakdown
+*Programmatic checks against scenario constraints; no human or LLM judge*
+
+| Scenario ID | Name | Turns | Status | Tools Called | Failure Notes |
+|---|---|---|---|---|---|
+| `scenario_01` | location_persistence | 3 | **PASS** | `get_job_details`, `search_jobs` | — |
+| `scenario_02` | location_update_remote | 3 | **PASS** | `search_jobs` | — |
+| `scenario_03` | seniority_exclusion_persistence | 3 | **PASS** | `refine_filters`, `search_jobs` | — |
+| `scenario_04` | dislike_exclusion | 3 | **PASS** | `refine_filters`, `search_jobs` | — |
+| `scenario_05` | vague_request_no_hallucination | 2 | **PASS** | `search_jobs` | — |
+| `scenario_06` | tool_error_handling | 2 | **PASS** | `get_job_details`, `search_jobs` | — |
+| `scenario_07` | explicit_filter_refinement | 2 | **PASS** | `refine_filters`, `search_jobs` | — |
+| `scenario_08` | skills_persistence_across_turns | 3 | **FAIL** | `refine_filters`, `search_jobs` | Turn 2: Turn crashed with error: Gemini API request failed after retries. |
+| `scenario_09` | job_inspection_then_location_switch | 3 | **PASS** | `get_job_details`, `search_jobs` | — |
+| `scenario_10` | multi_constraint_compounding | 4 | **FAIL** | `refine_filters`, `search_jobs` | Turn 4: Tool 'search_jobs' was not called with argument 'location' containing 'Chicago, IL'.; Turn 4: Tool 'search_jobs' was not called with argument 'level' containing 'Mid-Senior level'. |
+
 <!-- RESULTS:END -->
 
 ---
@@ -329,6 +370,9 @@ A full qualitative inspection containing 10 randomly sampled explanations (seed 
 11. **Prompt and Model Version Specificity (Phase 2C)**: LLM explanation outputs, schema validity, and groundedness metrics reflect `gemini-3.1-flash-lite` using prompt `explain-v1.0`; alternative models or prompt iterations will produce different performance profiles.
 12. **Programmatic Verification Without LLM or Human Judge (Phase 2C)**: All explanation quality signals were audited via deterministic string and regex checks; no qualitative human evaluation or secondary LLM judge was utilized.
 13. **Free-Tier Rate Limits & Quotas (Phase 2C)**: High-throughput execution without billing requires rate-controlled pacing and persistent disk caching (`data/cache/explanations/`) to prevent rate-limit exhaustion under Google AI Studio project quotas.
+14. **Agent Retrieval Strategy Scope (Phase 3A)**: The conversational agent integrates `BM25Retriever` exclusively because it scored highest on nDCG@10 against rule-based proposed labels (`jobmatch-rubric-v1`). However, because those labels share lexical signals with BM25, this choice reflects heuristic alignment rather than absolute retrieval superiority. The four retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) were not compared inside the conversational agent.
+15. **Offline Scripted Agent Evaluation (Phase 3A)**: The conversational agent's multi-turn capabilities and memory retention are evaluated programmatically across 10 hand-authored multi-turn scenarios rather than live human interactions.
+
 
 ---
 

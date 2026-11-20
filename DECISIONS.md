@@ -129,6 +129,22 @@ This document records all engineering decisions, model justifications, trade-off
   - **Contradiction Leakage**: Quantifies whether skills listed under `missing_skills` actually appear in both the job description and the candidate profile.
   - **Cluster Bootstrap CIs**: Bootstrap resampling ($N=1,000$ iterations, seed 42) is performed by clustering across profiles (not independent calls) to account for intra-profile correlation.
 
+---
+
+## Decision 10: Conversational Agent Architecture & Retrieval Tool Selection (Phase 3A)
+
+- **Context**: In Phase 3A, a conversational job search agent (`src/agent.py`) is implemented with multi-turn memory, function calling (Gemini 3.1 Flash Lite), and retrieval tools.
+- **Retrieval Engine Selection for `search_jobs`**:
+  - The agent's `search_jobs` tool is backed exclusively by `BM25Retriever`.
+  - **Justification & Critical Caveat**: BM25 was selected because it achieved the highest mean nDCG@10 (0.6147) in the Phase 2B retrieval evaluation. However, that evaluation was conducted against `jobmatch-rubric-v1` rule-based proposed labels that inherently share lexical signals with BM25 (e.g. title-token overlap, regex skill matching). This score reflects alignment with the rule-based labeling heuristic, not independent evidence that BM25 is fundamentally superior in semantic retrieval.
+  - **Single Strategy Scope**: The four retrieval strategies (BM25, Dense, Hybrid RRF, Cross-Encoder) were **not compared inside the conversational agent**; only BM25 was integrated into the agent tool loop.
+- **Operational Guardrails**:
+  - **Per-Turn Loop Cap**: Strict cap of 5 tool steps per turn (`MAX_STEPS_PER_TURN = 5`) to prevent model hallucination loops and API quota exhaustion.
+  - **Dislike Filtering**: When candidate expresses dislikes (e.g. "not interested in sales"), the retriever candidate pool is expanded ($k \times 3$) and post-filtered to exclude matching titles and descriptions before returning to the model.
+  - **Deterministic Disk Caching**: Model responses cached by SHA-256 hash of turn context in `data/cache/agent/`.
+  - **Grounded Tool Citations**: Strict programmatic check ensures the model cites only jobs returned in the current or prior tool results.
+
+
 
 
 

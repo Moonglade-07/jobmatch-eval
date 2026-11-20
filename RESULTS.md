@@ -19,6 +19,7 @@ accredited with its exact producing command and source JSON artifact in `reports
 | **Phase 2B: Ablation Grid** | `python src/run_retrieval_eval.py` | `reports/retrieval_ablation.json` | Filter and skill boost ablation combinations |
 | **Phase 2B: Circularity Subset Audit** | `python src/run_retrieval_eval.py` | `reports/retrieval_circularity_check.json` | Zero-skill-overlap evaluation (51 pairs, 17 profiles) |
 | **Phase 2C: LLM Explanation Quality** | `python src/run_explain_eval.py --full` | `reports/llm_quality.json` | Schema validity, baseline & adjusted groundedness, leakage |
+| **Phase 3A: Conversational Agent Evaluation** | `python src/run_agent_eval.py --full` | `reports/agent_eval.json` | Multi-turn scenario pass rate, memory retention, tool call success, latency |
 
 ---
 
@@ -263,3 +264,38 @@ Subset consists of **51 relevant candidate postings across 17 profiles** that sh
 
 ### 4. Qualitative Audit & Sample Explanations
 A full qualitative inspection containing 10 randomly sampled explanations (seed = 42) and the 5 worst cases by literal groundedness is documented in [`reports/llm_samples.md`](reports/llm_samples.md).
+
+---
+
+## 6. Phase 3A: Conversational Agent & API Evaluation
+
+### Multi-Turn Scripted Scenarios Evaluation
+*Programmatic checks against scenario constraints; no human or LLM judge*
+
+| Metric | Measured Value | Operational Context |
+|---|---|---|
+| **Evaluated Model** | `gemini-3.1-flash-lite` | Gemini Function Calling (`tools`) |
+| **Total Scenarios** | 10 | Scripted multi-turn scenarios (28 total turns) |
+| **Scenarios Passed** | **8/10 (80.0%)** | All programmatic assertions satisfied |
+| **Tool Call Success Rate** | **96.8%** (31 tool calls) | Executed without exceptions or invalid arguments |
+| **Memory Retention Rate** | **100.0%** (23 memory checks) | Constraints preserved across distracting/follow-up turns |
+| **Mean Tool Steps per Turn** | **2.11 steps** | Capped strictly at 5 steps per turn |
+| **Mean Turn Latency** | **10431.1 ms** | End-to-end turn latency (live + cached) |
+| **Max Turn Latency** | **36714.3 ms** | Worst-case single turn latency |
+| **Cache Hit Rate** | 21.4% (6 hits, 22 live calls) | Persistent on-disk JSON cache (`data/cache/agent/`) |
+
+### Scenario Breakdown
+*Programmatic checks against scenario constraints; no human or LLM judge*
+
+| Scenario ID | Name | Turns | Status | Tools Called | Failure Notes |
+|---|---|---|---|---|---|
+| `scenario_01` | location_persistence | 3 | **PASS** | `get_job_details`, `search_jobs` | — |
+| `scenario_02` | location_update_remote | 3 | **PASS** | `search_jobs` | — |
+| `scenario_03` | seniority_exclusion_persistence | 3 | **PASS** | `refine_filters`, `search_jobs` | — |
+| `scenario_04` | dislike_exclusion | 3 | **PASS** | `refine_filters`, `search_jobs` | — |
+| `scenario_05` | vague_request_no_hallucination | 2 | **PASS** | `search_jobs` | — |
+| `scenario_06` | tool_error_handling | 2 | **PASS** | `get_job_details`, `search_jobs` | — |
+| `scenario_07` | explicit_filter_refinement | 2 | **PASS** | `refine_filters`, `search_jobs` | — |
+| `scenario_08` | skills_persistence_across_turns | 3 | **FAIL** | `refine_filters`, `search_jobs` | Turn 2: Turn crashed with error: Gemini API request failed after retries. |
+| `scenario_09` | job_inspection_then_location_switch | 3 | **PASS** | `get_job_details`, `search_jobs` | — |
+| `scenario_10` | multi_constraint_compounding | 4 | **FAIL** | `refine_filters`, `search_jobs` | Turn 4: Tool 'search_jobs' was not called with argument 'location' containing 'Chicago, IL'.; Turn 4: Tool 'search_jobs' was not called with argument 'level' containing 'Mid-Senior level'. |

@@ -64,6 +64,7 @@ def generate_results_markdown(
     ret_ablation: Dict[str, Any],
     ret_circularity: Dict[str, Any],
     llm_quality: Dict[str, Any],
+    agent_eval: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Construct all results tables dynamically with zero hardcoded numbers."""
 
@@ -486,6 +487,70 @@ Subset consists of **{circ_pairs} relevant candidate postings across {circ_profs
 ### 4. Qualitative Audit & Sample Explanations
 A full qualitative inspection containing 10 randomly sampled explanations (seed = 42) and the 5 worst cases by literal groundedness is documented in [`reports/llm_samples.md`](reports/llm_samples.md)."""
 
+    if agent_eval is not None:
+        ag_summ = agent_eval.get("summary", {})
+        ag_model = agent_eval.get("gemini_model", "gemini-3.1-flash-lite")
+        ag_total = ag_summ.get("total_scenarios", 10)
+        ag_passed = ag_summ.get("scenarios_passed", 0)
+        ag_pass_rate = ag_summ.get("scenario_pass_rate", 0.0) * 100
+        ag_turns = ag_summ.get("total_turns", 0)
+        ag_mean_steps = ag_summ.get("mean_steps_per_turn", 0.0)
+        ag_mean_lat = ag_summ.get("mean_latency_ms", 0.0)
+        ag_max_lat = ag_summ.get("max_latency_ms", 0.0)
+        ag_tool_success = ag_summ.get("tool_call_success_rate", 0.0) * 100
+        ag_tool_total = ag_summ.get("total_tool_calls", 0)
+        ag_mem_rate = ag_summ.get("memory_retention_pass_rate", 0.0) * 100
+        ag_mem_checks = ag_summ.get("memory_checks_count", 0)
+        ag_live = ag_summ.get("live_calls", 0)
+        ag_hits = ag_summ.get("cache_hits", 0)
+        ag_hit_rate = ag_summ.get("cache_hit_rate", 0.0) * 100
+
+        sc_rows = []
+        for sc in agent_eval.get("scenarios", []):
+            sc_id = sc.get("scenario_id", "")
+            sc_name = sc.get("scenario_name", "")
+            sc_turns_cnt = sc.get("turns_count", 0)
+            sc_status = "**PASS**" if sc.get("passed", False) else "**FAIL**"
+            tools_used = sorted(list({
+                tc["tool"]
+                for t in sc.get("turn_details", [])
+                for tc in t.get("tool_calls", [])
+            }))
+            tools_str = ", ".join(f"`{t}`" for t in tools_used) if tools_used else "None"
+            reasons = "; ".join(sc.get("failure_reasons", [])) if not sc.get("passed", False) else "—"
+            sc_rows.append(f"| `{sc_id}` | {sc_name} | {sc_turns_cnt} | {sc_status} | {tools_str} | {reasons} |")
+        scenarios_table = "\n".join(sc_rows)
+
+        agent_section = f"""
+
+---
+
+## 6. Phase 3A: Conversational Agent & API Evaluation
+
+### Multi-Turn Scripted Scenarios Evaluation
+*Programmatic checks against scenario constraints; no human or LLM judge*
+
+| Metric | Measured Value | Operational Context |
+|---|---|---|
+| **Evaluated Model** | `{ag_model}` | Gemini Function Calling (`tools`) |
+| **Total Scenarios** | {ag_total} | Scripted multi-turn scenarios ({ag_turns} total turns) |
+| **Scenarios Passed** | **{ag_passed}/{ag_total} ({ag_pass_rate:.1f}%)** | All programmatic assertions satisfied |
+| **Tool Call Success Rate** | **{ag_tool_success:.1f}%** ({ag_tool_total} tool calls) | Executed without exceptions or invalid arguments |
+| **Memory Retention Rate** | **{ag_mem_rate:.1f}%** ({ag_mem_checks} memory checks) | Constraints preserved across distracting/follow-up turns |
+| **Mean Tool Steps per Turn** | **{ag_mean_steps:.2f} steps** | Capped strictly at 5 steps per turn |
+| **Mean Turn Latency** | **{ag_mean_lat:.1f} ms** | End-to-end turn latency (live + cached) |
+| **Max Turn Latency** | **{ag_max_lat:.1f} ms** | Worst-case single turn latency |
+| **Cache Hit Rate** | {ag_hit_rate:.1f}% ({ag_hits} hits, {ag_live} live calls) | Persistent on-disk JSON cache (`data/cache/agent/`) |
+
+### Scenario Breakdown
+*Programmatic checks against scenario constraints; no human or LLM judge*
+
+| Scenario ID | Name | Turns | Status | Tools Called | Failure Notes |
+|---|---|---|---|---|---|
+{scenarios_table}
+"""
+        md += agent_section
+
     return md
 
 
@@ -502,6 +567,7 @@ def generate_results_md(
     ret_ablation: Dict[str, Any],
     ret_circularity: Dict[str, Any],
     llm_quality: Dict[str, Any],
+    agent_eval: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Generate RESULTS.md with full provenance: command and source file for every measured number."""
     results_body = generate_results_markdown(
@@ -517,9 +583,14 @@ def generate_results_md(
         ret_ablation,
         ret_circularity,
         llm_quality,
+        agent_eval,
     )
 
-    header = """# Experimental Results & Provenance Ledger
+    agent_prov_row = ""
+    if agent_eval is not None:
+        agent_prov_row = "| **Phase 3A: Conversational Agent Evaluation** | `python src/run_agent_eval.py --full` | `reports/agent_eval.json` | Multi-turn scenario pass rate, memory retention, tool call success, latency |\n"
+
+    header = f"""# Experimental Results & Provenance Ledger
 
 This document lists every measured number across all experimental phases,
 accredited with its exact producing command and source JSON artifact in `reports/`.
@@ -540,7 +611,7 @@ accredited with its exact producing command and source JSON artifact in `reports
 | **Phase 2B: Ablation Grid** | `python src/run_retrieval_eval.py` | `reports/retrieval_ablation.json` | Filter and skill boost ablation combinations |
 | **Phase 2B: Circularity Subset Audit** | `python src/run_retrieval_eval.py` | `reports/retrieval_circularity_check.json` | Zero-skill-overlap evaluation (51 pairs, 17 profiles) |
 | **Phase 2C: LLM Explanation Quality** | `python src/run_explain_eval.py --full` | `reports/llm_quality.json` | Schema validity, baseline & adjusted groundedness, leakage |
-
+{agent_prov_row}
 ---
 
 """
@@ -563,6 +634,10 @@ def update_readme_and_results() -> None:
     ret_circularity = load_json("retrieval_circularity_check.json")
     llm_quality = load_json("llm_quality.json")
 
+    agent_eval = None
+    if (REPORTS_DIR / "agent_eval.json").exists():
+        agent_eval = load_json("agent_eval.json")
+
     # 2. Generate Results Content
     results_content = generate_results_markdown(
         data_stats,
@@ -577,6 +652,7 @@ def update_readme_and_results() -> None:
         ret_ablation,
         ret_circularity,
         llm_quality,
+        agent_eval,
     )
 
     # 3. Inject into README.md
@@ -611,6 +687,7 @@ def update_readme_and_results() -> None:
         ret_ablation,
         ret_circularity,
         llm_quality,
+        agent_eval,
     )
     RESULTS_PATH.write_text(results_md_text, encoding="utf-8")
     print(f"Successfully generated {RESULTS_PATH} with complete provenance.")
