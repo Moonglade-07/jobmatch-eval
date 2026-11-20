@@ -36,7 +36,7 @@ In `reports/sync_benchmark.json`, we benchmarked a simulated 9% daily mutation s
 - The dense index updates in 12.30 s via SHA-256 content hashes, recalculating embeddings only for the 210 mutated/added documents.
 - But the BM25 inverted index and tokenized corpus must be **rebuilt in full**, which incurs a one-off build latency of **~5,992.1 ms (~6.0 s)** on CPU (`reports/retrieval_latency.json`).
 
-**Production Reality**: The system is hybrid. Dense updates are incremental, but lexical updates require a full rebuild. If this system were deployed to serve 1,000,000 postings, `rank_bm25` would be completely unviable and would need to be replaced with an incremental inverted index engine like Tantivy or Lucene.
+**Production Reality**: The system is hybrid. Dense updates are incremental, but lexical updates require a full rebuild. If an indexing architecture were scaled to serve 1,000,000 postings, `rank_bm25` would be completely unviable and would need to be replaced with an incremental inverted index engine like Tantivy or Lucene.
 
 ---
 
@@ -81,14 +81,14 @@ Boundary-safe regex tests literal presence, not semantic polarity. If a job post
 
 ---
 
-### Question 5: If you had 3 more months, dedicated budget, and real users, what architectural decisions would you change, and what would you rebuild first?
+### Question 5: If you had 3 more months and dedicated budget to transition this research prototype to an interactive system, what architectural decisions would you change, and what would you rebuild first?
 
 **Answer:**
 If given 3 months and dedicated resources, I would prioritize four fundamental architectural upgrades:
 
 1. **Conduct Real Human Relevance Evaluations**:
    - The single largest limitation of this project is that all 1,037 relevance labels are rule-based heuristics (`human_reviewed: false`).
-   - I would deploy the blinded review package (`labels_to_review.csv`) to recruited technical recruiters and software engineers, calculate Cohen's weighted kappa to measure true inter-annotator agreement, and train a learned reranker on human preferences.
+   - I would execute the blinded review package (`labels_to_review.csv`) with recruited technical recruiters and software engineers, calculate Cohen's weighted kappa to measure true inter-annotator agreement, and train a learned reranker on human preferences.
 
 2. **Replace `rank_bm25` with an Incremental Search Engine**:
    - The inability of `rank_bm25` to support incremental updates forces a 6-second complete index rebuild whenever postings change.
@@ -98,6 +98,92 @@ If given 3 months and dedicated resources, I would prioritize four fundamental a
    - In our 3,000-job sample, 6 of 30 profiles had fewer than 3 relevant documents (`prof_07` Mobile Developer and `prof_23` Computer Vision had 0 relevant documents under strict filtering).
    - I would scale the corpus from 3,000 to 100,000+ postings with stratified sampling across technical disciplines to ensure robust statistical power for specialized engineering domains.
 
-4. **NLI-Based Groundedness & Live User Feedback**:
+4. **NLI-Based Groundedness & Candidate Engagement Analytics**:
    - I would replace literal regex groundedness with an entailment-based NLI model (e.g., DeBERTa-v3-large) to detect negation and exclusionary requirements.
-   - Finally, I would deploy an online A/B testing framework to measure live Click-Through Rates (CTR), application conversion rates, and candidate interview invitation rates rather than relying solely on offline nDCG metrics.
+   - Finally, I would implement an online A/B testing framework to measure Click-Through Rates (CTR), application conversion rates, and interview invitation rates rather than relying solely on offline nDCG metrics.
+
+---
+
+### Question 6: How does your conversational agent preserve candidate preferences across multiple turns, and what were the measured results?
+
+**Answer:**
+The conversational agent (`src/agent.py`) integrates explicit session state management decoupled from the LLM context window.
+
+**Session Memory Architecture**:
+- Each conversation is assigned a unique `session_id` backed by a persistent session file in `data/sessions/{session_id}.json`.
+- State tracking maintains an `active_filters` dictionary capturing:
+  - `location`: e.g., `"Chicago, IL"`, `"Remote"`
+  - `level`: e.g., `"Entry level"`, `"Mid-Senior level"`
+  - `excluded_companies`: blacklist populated via negative statements (e.g. `"not interested in sales or defense contractors"`)
+  - `preferred_skills`: technical competencies declared or emphasized across conversation turns
+- When a candidate modifies a constraint (e.g. stating *"actually, only show me remote positions"*), the agent invokes `refine_filters` or passes updated parameters to `search_jobs`, updating the persistent state.
+- In subsequent turns, even when the user asks distracting or follow-up questions (e.g., inspecting specific job details or inquiring about interview preparation), the agent merges persisted filters with new query intents.
+
+**Empirical Evaluation**:
+- Across 10 scripted scenarios comprising 28 total turns (`reports/agent_eval.json`), session memory was evaluated programmatically against 23 explicit state assertions.
+- **Memory Retention Rate**: **100.0% (23/23 checks passed)**. The agent never lost location constraints, seniority boundaries, or company exclusions across distracting turns.
+
+---
+
+### Question 7: Why did you enforce a strict 5-step loop cap on the agent tool execution, and how did it perform in practice?
+
+**Answer:**
+Autonomous tool-calling agents are prone to runaway loops, cascading retries, and unbounded latency when facing ambiguous user queries or empty tool results.
+
+**The Engineering Rationale**:
+1. **Preventing Autonomous Thrashing**: If a search returns zero results, an unconstrained model might autonomously attempt repeated searches with minor keyword variations, burning through API rate limits and generating runaway token costs.
+2. **Predictable Turn Latency**: Every tool step incurs upstream API inference and execution time. Capping the loop at `MAX_STEPS_PER_TURN = 5` guarantees a deterministic worst-case computational bound per turn.
+3. **Safety Fallback**: If the agent reaches 5 tool invocations without synthesizing a final user response, the turn safely halts, outputs the best accumulated results, and returns control to the candidate rather than hanging or crashing.
+
+**Empirical Performance**:
+- Across all evaluated turns in `reports/agent_eval.json`:
+  - **Mean Tool Steps per Turn**: **2.14 steps** (typically 1 filter update or search followed by 1 inspection call).
+  - **Maximum Observed Steps**: Exactly 3 steps in any turn, well below the 5-step ceiling.
+  - **Turn Latency**: Mean end-to-end turn latency was **10,828.3 ms (~10.8 s)** with a p50 of ~5.9 s, though worst-case multi-step turns with retries reached **41,697.0 ms (~41.7 s)**.
+  - **Tool Call Success Rate**: **96.9%** (31/32 calls; the single failure was an intentional negative test verifying graceful error handling when querying an invalid job ID).
+
+---
+
+### Question 8: Why did you choose scripted multi-turn scenarios instead of open-ended conversational evaluation or an LLM-as-a-judge?
+
+**Answer:**
+We evaluated the agent using 10 deterministic, scripted multi-turn scenarios (`tests/agent_scenarios.json`, 28 total turns) rather than subjective LLM-as-a-judge grading or unconstrained chat logs.
+
+**Why Scripted Programmatic Evaluation**:
+1. **Deterministic Verification**: LLM-as-a-judge suffers from prompt sensitivity, self-enhancement bias, and lack of reproducibility. By authoring scripted scenarios with programmatic assertions, we directly inspect:
+   - Tool call arguments (e.g., verifying `location` matches exactly).
+   - Session state persistence across turns.
+   - Company exclusion blacklists.
+   - Resiliency when tools return HTTP 404 or invalid IDs.
+2. **Repeatability**: Scenarios can be re-run across model checkpoints, prompt revisions, or temperature configurations with identical pass/fail grading.
+
+**Honest Evaluation Numbers**:
+- **First-Pass Pass Rate**: **8/10 (80.0%)** on the initial run.
+  - `scenario_08` suffered a transient infrastructure API failure on Turn 2 (`Gemini API request failed after retries`) and passed on rerun, achieving a **9/10 (90.0%) behavioral pass rate**.
+  - `scenario_10` suffered a genuine behavioral failure.
+- **Methodological Limitations**:
+  - 10 scenarios and 28 turns represent a small, hand-crafted test suite.
+  - While it rigorously verifies boundary logic and memory state, it cannot capture the infinite diversity, typos, idioms, and conversational ambiguity of real human dialogue.
+
+---
+
+### Question 9: What happened in Scenario 10 where the agent silently switched Chicago to Remote, and why did you keep the failure instead of modifying the test?
+
+**Answer:**
+`scenario_10` evaluates multi-constraint compounding across 4 turns. In this scenario, the synthetic user specifies Mid-Senior level roles in Chicago, IL, adds skill preferences, and asks for recommendations.
+
+**The Empirical Finding**:
+1. **Zero-Result Reality**: In our 3,000-job sample from LinkedIn, there happen to be zero Mid-Senior software engineering postings located in Chicago, IL.
+2. **The Autonomous Drift**:
+   - In Turns 1–3, the agent searched for Chicago postings and returned empty or sparse results.
+   - In Turn 4, the session state correctly preserved both `location: "Chicago, IL"` and `level: "Mid-Senior level"`.
+   - However, facing an empty result set, the model autonomously pivoted: instead of informing the candidate that no Chicago Mid-Senior postings existed, it passed `location="Remote"` to `search_jobs`, while Mid-Senior level was applied through session memory (returning remote mid-senior postings).
+3. **The Programmatic Failure**:
+   - The test assertion strictly required:
+     `tool_arg_contains: {"location": "Chicago, IL", "level": "Mid-Senior level"}`.
+   - Because `location` was `"Remote"`, the programmatic assertion failed.
+
+**Why We Kept the Failure**:
+- Modifying test assertions to accommodate model drift is benchmark tampering.
+- The failure exposed a critical agentic failure mode: **silent constraint relaxation**. An autonomous agent should never silently modify a candidate's geographic requirement to find results without explicitly asking the candidate for permission.
+- We documented this failure and inspection note honestly in `reports/agent_eval.json`, `README.md`, `DECISIONS.md`, and this interview guide.

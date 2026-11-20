@@ -36,7 +36,7 @@ This guide provides everything needed to independently review and annotate [`lab
 ### `prof_02`: Senior Backend Engineer (Mid-Senior level | New York, NY)
 - **Target Role**: Senior Backend Engineer
 - **Core Skills**: Go, Python, Kubernetes, PostgreSQL, Kafka, Microservices, gRPC
-- **Background**: Senior Backend Engineer with 6 years designing low-latency distributed systems, event-driven architectures with Apache Kafka, and scalable Go microservices deployed on Kubernetes.
+- **Background**: Senior Backend Engineer with 6 years designing low-latency distributed systems, event-driven architectures with Apache Kafka, and scalable Go microservices running on Kubernetes.
 
 ### `prof_03`: Frontend Developer (Entry level | Boston, MA)
 - **Target Role**: Frontend Developer
@@ -171,7 +171,7 @@ This guide provides everything needed to independently review and annotate [`lab
 ### `prof_29`: IT Specialist (Entry level | Remote) *(Vague Technical Profile)*
 - **Target Role**: IT Specialist
 - **Core Skills**: Computer Troubleshooting, Hardware, Operating Systems, Customer Service, Technical Support
-- **Background**: Tech enthusiast with a passion for computers and technology. Good at solving hardware problems, setting up office operating systems, and assisting users with software issues. Quick learner eager to work in tech.
+- **Background**: Tech enthusiast with a passion for computers and technology. Good at solving hardware problems, setting up office operating systems, and assisting team members with software issues. Quick learner eager to work in tech.
 
 ### `prof_30`: Technical Specialist (Mid-Senior level | United States) *(Vague IT Generalist)*
 - **Target Role**: Technical Specialist
