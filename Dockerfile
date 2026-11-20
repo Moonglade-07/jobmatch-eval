@@ -1,28 +1,47 @@
+# Multi-stage / optimized slim Dockerfile for Streamlit Job Search & Agent Demo
+# Dataset: 3,000-posting clean derivative sample licensed under CC BY-SA 4.0
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Prevent Python from writing .pyc files and enable unbuffered output
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV STREAMLIT_SERVER_PORT=8501
+ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
+ENV STREAMLIT_SERVER_HEADLESS=true
+
+# Install minimal build tools for compiling C extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+# Install pinned dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project source and configuration
+# Copy source code, clean evaluation dataset sample, and reports
+# Raw uncleaned dataset (raw_postings.csv) is deliberately excluded (.dockerignore)
 COPY src/ ./src/
 COPY tests/ ./tests/
+COPY reports/ ./reports/
+COPY data/jobs_clean.parquet ./data/jobs_clean.parquet
+COPY data/eval/ ./data/eval/
 COPY pyproject.toml .
 COPY .env.example .
+COPY app.py .
 
-# Set offline environment variables for cached models
-ENV ANONYMIZED_TELEMETRY=False
-ENV HF_HUB_OFFLINE=1
-ENV TRANSFORMERS_OFFLINE=1
+# Pre-build ChromaDB dense vector index at image build time
+# Guarantees self-contained, reproducible cold-start deployment without volume mounts
+RUN python src/index.py
 
-# Default execution: run test suite
-CMD ["pytest", "-v", "tests/"]
+# Expose standard Streamlit port
+EXPOSE 8501
 
+# Healthcheck for container orchestrators and cloud hosts
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+
+# Launch Streamlit app
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]

@@ -1,0 +1,9 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+data/raw_postings.csv
+data/cache/
+data/sessions/
+.pytest_cache/
+.env
