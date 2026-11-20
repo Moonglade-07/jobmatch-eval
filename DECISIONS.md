@@ -153,6 +153,36 @@ This document records all engineering decisions, model justifications, trade-off
     - **Tool Call Success**: 31/32 calls (96.9%; single failure was an expected negative test for non-existent job ID in `scenario_06`).
   - **Operational Latency**: Turn latency averages ~10.8 s (p50 ~5.9 s), with worst-case turns reaching ~37–42 s during multi-step tool loops or upstream retries. Evaluated exclusively on `gemini-3.1-flash-lite`.
 
+---
+
+## Decision 11: Streamlit Demo Application, Containerization & Cloud Deployment Architecture (Phase 3B)
+
+- **Context**: In Phase 3B, an interactive user-facing application (`app.py`), containerized environment (`Dockerfile`), and cloud deployment architecture are established for public demonstration and user inspection.
+- **Decision on ChromaDB Index Provisioning in Docker**:
+  - **Selected Approach**: Build the dense vector index during image construction (`RUN python src/index.py`).
+  - **Alternatives Considered**:
+    1. *Volume Mounting*: Loading index directory from an external host volume at runtime. Rejected for public demonstration images because it creates an operational dependency on external storage volumes and causes runtime failure if volumes are unmounted or misconfigured.
+    2. *Runtime First-Request Build*: Building index on container cold start. Rejected because building the 3,000-document index takes ~2.5 minutes on CPU, causing initial HTTP healthcheck timeouts and poor user experience.
+  - **Justification**: Baking the index from `data/jobs_clean.parquet` into the container image guarantees 100% self-contained, reproducible execution. The container launches instantaneously and satisfies orchestrator healthchecks (`/_stcore/health`) immediately.
+- **CC BY-SA 4.0 Dataset Licensing Compliance**:
+  - The underlying dataset is derived from LinkedIn Job Postings, licensed under [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/).
+  - **Actions Taken**:
+    - Raw uncleaned dataset (`data/raw_postings.csv`, 15,000+ postings) is strictly excluded via `.gitignore` and `.dockerignore`.
+    - Only the cleaned, deduplicated 3,000-posting derivative sample (`data/jobs_clean.parquet`) is bundled. Under CC BY-SA 4.0 Section 3, adaptations and derivative databases may be shared provided appropriate credit is given and derivatives are shared under the same license terms.
+    - Prominent attribution and license links are embedded in the application footer, `README.md`, and this ledger.
+- **Free-Host Resource Management & Cold Start Strategy**:
+  - Free hosting platforms (e.g. Hugging Face Spaces free CPU tier) provide constrained compute (2 vCPU / 2GB–16GB RAM).
+  - The bi-encoder (`all-MiniLM-L6-v2`) requires only ~80MB RAM and runs efficiently on CPU.
+  - The cross-encoder (`ms-marco-MiniLM-L-6-v2`) requires ~250MB RAM and heavy CPU re-ranking cycles.
+  - In cloud deployments, the environment variable `DISABLE_CROSS_ENCODER=1` can disable cross-encoder re-ranking, gracefully falling back to Hybrid RRF with a clear user notice rather than risking Out-Of-Memory (OOM) pod evictions.
+- **API Key Protection & Quota Safeguards**:
+  - `GEMINI_API_KEY` is loaded exclusively from host environment variables or Streamlit secrets (`st.secrets`). It is never logged, printed, or sent to client browsers.
+  - Built-in multi-tenant abuse protection:
+    - **Per-Session Cap**: Maximum 20 requests per user session.
+    - **Daily Global Cap**: Maximum 200 requests per day across all sessions, preventing malicious exhaustion of free-tier quotas (1,500 RPD).
+    - When quota is reached, the application gracefully degrades to rule-based heuristic extraction with a clear UI banner.
+
+
 
 
 
