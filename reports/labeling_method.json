@@ -1,6 +1,6 @@
 {
   "labeling_approach": "Deterministic Rubric-Guided Relevance Evaluation",
-  "evaluator_model": "jobmatch-rubric-v1 (Rule-based expert heuristic alignment)",
+  "evaluator_model": "jobmatch-rubric-v1 (Deterministic rule-based heuristic alignment)",
   "rubric_documentation": "docs/LABELING.md",
   "random_seed": 42,
   "sample_rate_must_review": 0.25,

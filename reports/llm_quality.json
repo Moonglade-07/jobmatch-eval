@@ -28,6 +28,21 @@
     }
   },
   "groundedness": {
+    "groundedness_main_pooled_baseline": 0.917,
+    "groundedness_main_macro_baseline": 0.9179,
+    "groundedness_main_macro_baseline_ci_95": [
+      0.8772,
+      0.9566
+    ],
+    "total_grounded_skills_baseline": 254,
+    "total_joined_word_repaired_skills": 7,
+    "groundedness_main_pooled_adjusted": 0.9422,
+    "groundedness_main_macro_adjusted": 0.9431,
+    "groundedness_main_macro_adjusted_ci_95": [
+      0.904,
+      0.98
+    ],
+    "total_grounded_skills_adjusted": 261,
     "groundedness_main_pooled": 0.917,
     "groundedness_main_macro": 0.9179,
     "groundedness_main_macro_ci_95": [

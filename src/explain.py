@@ -207,6 +207,26 @@ def evaluate_claim_groundedness(
     return grounded_count / len(matched_skills), strict_count / len(matched_skills), details
 
 
+def is_skill_grounded_joined_tolerant(skill: str, text: str) -> bool:
+    """Check if skill is grounded either via standard regex or joined without space.
+
+    Recovers cases where raw text has joined block elements (e.g. 'JavaScriptUnderstanding',
+    'TableauExperience', 'REST APIsExperience').
+    """
+    if is_skill_grounded_regex(skill, text):
+        return True
+    matches = list(re.finditer(re.escape(skill), text, re.IGNORECASE))
+    for m in matches:
+        sc = text[m.start() - 1] if m.start() > 0 else " "
+        ec = text[m.end()] if m.end() < len(text) else " "
+        is_sub = sc.isalpha() and ec.isalpha()
+        if not is_sub and (sc.isalnum() or ec.isalnum() or sc in "+#" or ec in "+#"):
+            return True
+        elif is_sub and len(skill) > 4:
+            return True
+    return False
+
+
 def evaluate_profile_support(matched_skills: List[str], profile_text: str) -> float:
     """Evaluate whether claimed matched skills actually exist in candidate profile.
 
@@ -730,12 +750,14 @@ def evaluate_explanations(
 
     # 2. Groundedness, Profile Support, Contradiction Leakage per profile
     prof_groundedness: List[float] = []
+    prof_groundedness_adj: List[float] = []
     prof_groundedness_strict: List[float] = []
     prof_profile_support: List[float] = []
     prof_leakage: List[float] = []
 
     total_claimed_skills = 0
     total_grounded_skills = 0
+    total_grounded_skills_adj = 0
     total_strict_grounded_skills = 0
     total_supported_skills = 0
     total_missing_skills = 0
@@ -746,6 +768,7 @@ def evaluate_explanations(
         prof_text = f"{prof.get('target_role', '')} {' '.join(prof.get('skills', []))} {prof.get('resume_text', '')}"
 
         p_g_list = []
+        p_g_adj_list = []
         p_gs_list = []
         p_supp_list = []
         p_leak_list = []
@@ -759,13 +782,18 @@ def evaluate_explanations(
             matched = r.explanation.matched_skills
             missing = r.explanation.missing_skills
 
-            # Groundedness
+            # Groundedness (baseline)
             g_ratio, gs_ratio, details = evaluate_claim_groundedness(matched, job_text)
             p_g_list.append(g_ratio)
             p_gs_list.append(gs_ratio)
             total_claimed_skills += len(matched)
             total_grounded_skills += sum(1 for d in details if d["grounded"])
             total_strict_grounded_skills += sum(1 for d in details if d["grounded_strict"])
+
+            # Groundedness (adjusted for joined words)
+            call_adj_count = sum(1 for s in matched if is_skill_grounded_joined_tolerant(s, job_text))
+            total_grounded_skills_adj += call_adj_count
+            p_g_adj_list.append(call_adj_count / len(matched) if matched else 1.0)
 
             # Profile support
             supp_ratio = evaluate_profile_support(matched, prof_text)
@@ -783,6 +811,7 @@ def evaluate_explanations(
                     total_contradiction_skills += 1
 
         prof_groundedness.append(float(np.mean(p_g_list)) if p_g_list else 1.0)
+        prof_groundedness_adj.append(float(np.mean(p_g_adj_list)) if p_g_adj_list else 1.0)
         prof_groundedness_strict.append(float(np.mean(p_gs_list)) if p_gs_list else 1.0)
         prof_profile_support.append(float(np.mean(p_supp_list)) if p_supp_list else 1.0)
         prof_leakage.append(float(np.mean(p_leak_list)) if p_leak_list else 0.0)
@@ -793,6 +822,12 @@ def evaluate_explanations(
         total_grounded_skills / total_claimed_skills if total_claimed_skills > 0 else 1.0
     )
     groundedness_main_macro = float(np.mean(prof_groundedness)) if prof_groundedness else 1.0
+    groundedness_main_pooled_adjusted = (
+        total_grounded_skills_adj / total_claimed_skills if total_claimed_skills > 0 else 1.0
+    )
+    groundedness_main_macro_adjusted = (
+        float(np.mean(prof_groundedness_adj)) if prof_groundedness_adj else 1.0
+    )
     groundedness_strict_pooled = (
         total_strict_grounded_skills / total_claimed_skills if total_claimed_skills > 0 else 1.0
     )
@@ -815,6 +850,7 @@ def evaluate_explanations(
     leakage_macro = float(np.mean(prof_leakage)) if prof_leakage else 0.0
 
     ci_grounded = compute_bootstrap_profile_ci(prof_groundedness)
+    ci_grounded_adj = compute_bootstrap_profile_ci(prof_groundedness_adj)
     ci_grounded_strict = compute_bootstrap_profile_ci(prof_groundedness_strict)
     ci_support = compute_bootstrap_profile_ci(prof_profile_support)
     ci_leakage = compute_bootstrap_profile_ci(prof_leakage)
@@ -883,6 +919,15 @@ def evaluate_explanations(
             "fallback_breakdown": fallback_breakdown,
         },
         "groundedness": {
+            "groundedness_main_pooled_baseline": round(groundedness_main_pooled, 4),
+            "groundedness_main_macro_baseline": round(groundedness_main_macro, 4),
+            "groundedness_main_macro_baseline_ci_95": ci_grounded if ci_grounded is not None else "n too small",
+            "total_grounded_skills_baseline": total_grounded_skills,
+            "total_joined_word_repaired_skills": total_grounded_skills_adj - total_grounded_skills,
+            "groundedness_main_pooled_adjusted": round(groundedness_main_pooled_adjusted, 4),
+            "groundedness_main_macro_adjusted": round(groundedness_main_macro_adjusted, 4),
+            "groundedness_main_macro_adjusted_ci_95": ci_grounded_adj if ci_grounded_adj is not None else "n too small",
+            "total_grounded_skills_adjusted": total_grounded_skills_adj,
             "groundedness_main_pooled": round(groundedness_main_pooled, 4),
             "groundedness_main_macro": round(groundedness_main_macro, 4),
             "groundedness_main_macro_ci_95": ci_grounded if ci_grounded is not None else "n too small",
